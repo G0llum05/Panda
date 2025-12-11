@@ -1,2 +1,4 @@
 build/
 .vscode/
+CMakeLists.txt
+term0.uriscv
