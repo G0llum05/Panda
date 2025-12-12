@@ -84,6 +84,16 @@ void printList(struct list_head *head) {
   klog_print("\n");
 }
 
+void printNodeContent(struct pcb_t *p) {
+  char str[200];
+  klog_print("{");
+  int prio = p->p_prio;
+  char *new_str = int_to_string(prio, str);
+  klog_print(new_str);
+  klog_print(", ");
+  klog_print("}");
+}
+
 void initPcbs() {
   INIT_LIST_HEAD(&pcbFree_h);
   for (int i = 0; i < MAXPROC; i++) {
@@ -105,8 +115,8 @@ pcb_t *allocPcb() {
 
   // pcb tree fields
   allocated_node->p_parent = NULL;
-  allocated_node->p_child = (struct list_head){NULL, NULL};
-  allocated_node->p_sib = (struct list_head){NULL, NULL};
+  INIT_LIST_HEAD(&allocated_node->p_child);
+  INIT_LIST_HEAD(&allocated_node->p_sib);
   //
   // process status information
   allocated_node->p_s = (state_t){0};
@@ -129,21 +139,16 @@ int emptyProcQ(struct list_head *head) { return list_empty(head); }
 
 void insertProcQ(struct list_head *head, pcb_t *p) {
   struct list_head *pos = head;
-  klog_print("HEAD");
-  printList(head);
 
   list_for_each(pos, head) {
     struct pcb_t *pcb_node = container_of(pos, pcb_t, p_list);
     if (p->p_prio > pcb_node->p_prio) {
-      klog_print("PRIMA");
-      printList(head);
       list_add_tail(&p->p_list, pos);
-      klog_print("DOPO");
-      printList(head);
       return;
     }
   }
-  // Se non è stato inserito il nodo da inserire è quello con la priorità minore
+  // Se non è stato inserito il nodo da inserire è quello con la priorità
+  // minore
   list_add_tail(&p->p_list, head);
 }
 
@@ -159,7 +164,6 @@ pcb_t *removeProcQ(struct list_head *head) {
     return NULL;
   list_del(node);
   struct pcb_t *pcb_node = container_of(node, pcb_t, p_list);
-  freePcb(pcb_node);
   return pcb_node;
 }
 
@@ -169,7 +173,10 @@ pcb_t *outProcQ(struct list_head *head, pcb_t *p) {
     struct pcb_t *pcb_node = container_of(pos, pcb_t, p_list);
     if (p == pcb_node) {
       // se due nodi sono uguali vuol dire che c'è sempre un nodo prev
-      return removeProcQ(list_prev(&p->p_list));
+      struct list_head *prev_node = list_prev(&p->p_list);
+      struct pcb_t *node = removeProcQ(prev_node);
+      return node;
+      // return removeProcQ(prev_node);
     }
   }
   // Se non è stato rimosso il nodo significa che non era presente il nodo p
@@ -177,10 +184,39 @@ pcb_t *outProcQ(struct list_head *head, pcb_t *p) {
   return NULL;
 }
 
-int emptyChild(pcb_t *p) {}
+int emptyChild(pcb_t *p) { return list_empty(&p->p_child); }
 
-void insertChild(pcb_t *prnt, pcb_t *p) {}
+void insertChild(pcb_t *prnt, pcb_t *p) {
+  list_add_tail(&p->p_child, &prnt->p_child);
+  p->p_parent = prnt;
+}
 
-pcb_t *removeChild(pcb_t *p) {}
+pcb_t *removeChild(pcb_t *p) {
+  if (list_empty(&p->p_child))
+    return NULL;
+  struct list_head *new_free_node = p->p_child.next;
+  list_del(new_free_node);
+  struct pcb_t *child_pcb = container_of(new_free_node, pcb_t, p_child);
+  child_pcb->p_parent = NULL;
+  return child_pcb;
+}
 
-pcb_t *outChild(pcb_t *p) {}
+pcb_t *outChild(pcb_t *p) {
+  if (p->p_parent == NULL)
+    return NULL;
+  struct pcb_t *parent = p->p_parent;
+  struct list_head *parent_child = &parent->p_child;
+  // c'è almeno un nodo
+  struct list_head *pos = parent_child->next;
+
+  list_for_each(pos, parent_child) {
+    struct pcb_t *pcb_node = container_of(pos, pcb_t, p_child);
+    if (p == pcb_node) {
+      list_del(pos);
+      p->p_parent = NULL;
+      return p;
+    }
+  }
+  // Se non è stato trovato
+  return NULL;
+}
