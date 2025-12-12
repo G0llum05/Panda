@@ -5,6 +5,11 @@ static struct list_head semdFree_h;
 static struct list_head semd_h;
 
 void initASL() {
+    INIT_LIST_HEAD(&semdFree_h);
+    for(int i = 0; i < MAXPROC; i++) {
+        struct list_head *new_node = &semd_table[i].s_link;
+        list_add(new_node, &semdFree_h);
+    }
 }
 
 int insertBlocked(int* semAdd, pcb_t* p) {
