@@ -6,8 +6,6 @@ static semd_t semd_table[MAXPROC];
 static struct list_head semdFree_h;
 static struct list_head semd_h;
 
-void initSemdSentinel() { INIT_LIST_HEAD(&semd_h); }
-
 void freeSemd(semd_t *s) { list_add(&s->s_link, &semdFree_h); }
 
 semd_t *allocSemd() {
@@ -44,7 +42,7 @@ semd_t *getSemd(int *semAdd) {
 }
 
 void initASL() {
-  initSemdSentinel();
+  INIT_LIST_HEAD(&semd_h);
   INIT_LIST_HEAD(&semdFree_h);
   for (int i = 0; i < MAXPROC; i++) {
     struct list_head *new_node = &semd_table[i].s_link;
@@ -100,11 +98,13 @@ pcb_t *removeBlocked(int *semAdd) {
 }
 
 pcb_t *outBlocked(pcb_t *p) {
+  // wrong pcb in input
+  //
   if (p->p_semAdd == NULL) {
     return NULL;
   }
-
   semd_t *semaphore = getSemd(p->p_semAdd);
+
   // Potrebbe servire qua, es il semAdd punta a qualcosa di non valido
   if (semaphore == NULL) {
     return NULL;
