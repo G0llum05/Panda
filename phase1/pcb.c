@@ -47,7 +47,8 @@ pcb_t *allocPcb() {
 
   allocated_node->p_prio = 0;
 
-  allocated_node->p_pid++;
+  allocated_node->p_pid = next_pid;
+  next_pid++;
 
   return allocated_node;
 }
