@@ -1,6 +1,4 @@
 #include "./headers/pcb.h"
-void klog_print(char *str);
-void klog_print_dec(unsigned int *str);
 
 void *memset(void *str, int c, size_tt n) {
   unsigned char *ptr = (unsigned char *)str;
@@ -14,85 +12,6 @@ void *memset(void *str, int c, size_tt n) {
 static struct list_head pcbFree_h;
 static pcb_t pcbFree_table[MAXPROC];
 static int next_pid = 1;
-
-char *int_to_string(int value, char *str) {
-  int is_negative = 0;
-  int i = 0; // Indice per il buffer str
-
-  // CASO 1: Gestione dello Zero
-  if (value == 0) {
-    str[i++] = '0';
-    str[i] = '\0';
-    return str;
-  }
-
-  // CASO 2: Gestione dei Negativi
-  if (value < 0) {
-    is_negative = 1;
-    // Convertiamo il negativo in positivo per la divisione.
-    // Usiamo un long per evitare overflow in caso di INT_MIN.
-    value = (int)-value;
-  }
-
-  // CASO 3: Conversione della Cifra
-  // Usiamo la divisione e il modulo per estrarre le cifre in ordine inverso
-  while (value != 0) {
-    int remainder = value % 10;
-    // Converti la cifra in un carattere ASCII aggiungendo '0'
-    str[i++] = remainder + '0';
-    value = value / 10;
-  }
-
-  // Aggiungi il segno negativo se necessario
-  if (is_negative) {
-    str[i++] = '-';
-  }
-
-  // Termina la stringa con il carattere nullo
-  str[i] = '\0';
-
-  // Le cifre sono nel buffer, ma al contrario (es. 543 -> "345-")
-  // Dobbiamo invertire la stringa.
-
-  // Inversione della stringa
-  int start = 0;
-  int end = i - 1;
-  char temp;
-
-  while (start < end) {
-    temp = str[start];
-    str[start] = str[end];
-    str[end] = temp;
-    start++;
-    end--;
-  }
-
-  return str;
-}
-
-void printList(struct list_head *head) {
-  char str[200];
-  struct list_head *pos = head;
-  klog_print("[");
-  list_for_each(pos, head) {
-    int prio = container_of(pos, pcb_t, p_list)->p_prio;
-    char *new_str = int_to_string(prio, str);
-    klog_print(new_str);
-    klog_print(", ");
-  }
-  klog_print("]");
-  klog_print("\n");
-}
-
-void printNodeContent(struct pcb_t *p) {
-  char str[200];
-  klog_print("{");
-  int prio = p->p_prio;
-  char *new_str = int_to_string(prio, str);
-  klog_print(new_str);
-  klog_print(", ");
-  klog_print("}");
-}
 
 void initPcbs() {
   INIT_LIST_HEAD(&pcbFree_h);
@@ -117,7 +36,7 @@ pcb_t *allocPcb() {
   allocated_node->p_parent = NULL;
   INIT_LIST_HEAD(&allocated_node->p_child);
   INIT_LIST_HEAD(&allocated_node->p_sib);
-  //
+
   // process status information
   allocated_node->p_s = (state_t){0};
   allocated_node->p_time = 0;
@@ -128,7 +47,8 @@ pcb_t *allocPcb() {
 
   allocated_node->p_prio = 0;
 
-  allocated_node->p_pid++;
+  allocated_node->p_pid = next_pid;
+  next_pid++;
 
   return allocated_node;
 }
