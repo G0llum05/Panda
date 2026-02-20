@@ -21,9 +21,15 @@ set(CMAKE_C_LINKER ${XT_PRG_PREFIX}ld)
 add_link_options(-nostdlib -T ${URISCV_SRC}/uriscvcore.ldscript -march=rv32imfd)
 add_compile_options(-ffreestanding -static -nostartfiles -nostdlib -I${URISCV_INC} -ggdb -Wall -O0 -std=gnu99 -march=rv32imafd -mabi=ilp32d)
 
+file(GLOB PHASE1_SRC "phase1/*.c")
+file(GLOB PHASE2_SRC "phase2/*.c")
 add_executable(MultiPandOS
-    ./klog.c phase1/pcb.c phase1/asl.c phase1/p1test.c
-    ${URISCV_SRC}/crtso.S ${URISCV_SRC}/liburiscv.S)
+    ./klog.c
+    ${PHASE1_SRC}
+    ${PHASE2_SRC}
+    ${URISCV_SRC}/crtso.S
+    ${URISCV_SRC}/liburiscv.S
+)
 
 add_custom_target(
 	MultiPandOSuRISCV ALL
