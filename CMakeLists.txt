@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 project(MultiPandOS LANGUAGES C ASM)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(XT_PRG_PREFIX riscv64-unknown-elf-)
 if (EXISTS "/usr/local/share/uriscv")
   set(URISCV_SRC /usr/local/share/uriscv)
