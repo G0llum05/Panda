@@ -3,24 +3,24 @@ project(MultiPandOS LANGUAGES C ASM)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if (EXISTS "/usr/local/bin/riscv64-unknown-elf-gcc")
-  set(XT_PRG_PREFIX riscv64-unknown-elf-)
-elseif (EXISTS "/usr/bin/riscv64-elf-gcc")
-  set(XT_PRG_PREFIX riscv64-elf-)
-else ()
-  message(FATAL_ERROR "Missing riscv64-unknown-elf toolchain")
-endif ()
-if (EXISTS "/usr/local/share/uriscv")
-  set(URISCV_SRC /usr/local/share/uriscv)
-  set(URISCV_INC /usr/local/include)
-elseif (EXISTS "/usr/share/uriscv")
-  # TODO: Check for arch based systems!
-  set(URISCV_SRC /usr/share/uriscv)
-  set(URISCV_INC /usr/local/include)
-else ()
-  message(FATAL_ERROR "Missing uriscv lib")
-endif ()
+# Look up RISCV GCC compiler path
+find_program(RISCV_GCC riscv64-unknown-elf-gcc
+  PATHS /usr/local/bin /usr/bin
+  NO_DEFAULT_PATH REQUIRED
+)
 
+set(XT_PRG_PREFIX "riscv64-unknown-elf-")  # Since we looked up gcc already
+
+# Find uriscv source and include directories
+find_path(URISCV_SRC uriscvcore.ldscript
+  PATHS /usr/local/share/uriscv /usr/share/uriscv
+  REQUIRED
+)
+
+find_path(URISCV_INC uriscv/liburiscv.h # liburiscv.h as an identifier
+  PATHS /usr/local/include /usr/include
+  REQUIRED
+)
 
 set(CMAKE_C_COMPILER ${XT_PRG_PREFIX}gcc)
 set(CMAKE_ASM_COMPILER ${XT_PRG_PREFIX}gcc)
