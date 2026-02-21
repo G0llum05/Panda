@@ -6,10 +6,22 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Look up RISCV GCC compiler path
 find_program(RISCV_GCC riscv64-unknown-elf-gcc
   PATHS /usr/local/bin /usr/bin
-  NO_DEFAULT_PATH REQUIRED
+  NO_DEFAULT_PATH
 )
+if(NOT RISCV_GCC)
+  find_program(RISCV_GCC riscv64-elf-gcc
+    PATHS /usr/local/bin /usr/bin
+    NO_DEFAULT_PATH
+  )
+endif()
 
-set(XT_PRG_PREFIX "riscv64-unknown-elf-")  # Since we looked up gcc already
+if(RISCV_GCC MATCHES "riscv64-unknown-elf-gcc")
+  set(XT_PRG_PREFIX "riscv64-unknown-elf-")
+elseif(RISCV_GCC MATCHES "riscv64-elf-gcc")
+  set(XT_PRG_PREFIX "riscv64-elf-")
+else()
+  message(FATAL_ERROR "RISCV GCC not found")
+endif()
 
 # Find uriscv source and include directories
 find_path(URISCV_SRC uriscvcore.ldscript
