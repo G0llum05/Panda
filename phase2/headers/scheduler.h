@@ -1,4 +1,4 @@
-#ifdef SCHEDULER_H
+#ifndef SCHEDULER_H
 #define SCHEDULER_H
 
 #endif
