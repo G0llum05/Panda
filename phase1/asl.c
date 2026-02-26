@@ -8,10 +8,6 @@ static struct list_head semd_h;
 // Inserts semaphore in the free semaphores list.
 void freeSemd(semd_t *s) { list_add(&s->s_link, &semdFree_h); }
 
-/**
-    Allocates a semaphore from the free semaphores list.
-    @return Pointer to new semaphore descriptor. 
-*/
 semd_t *allocSemd() {
     // Check availability for a new free semaphore.
     if (list_empty(&semdFree_h)) return NULL;

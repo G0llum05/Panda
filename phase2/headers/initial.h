@@ -8,6 +8,7 @@ extern unsigned int process_count;
 extern unsigned int soft_block_count;
 extern pcb_PTR running_pcb;
 extern struct list_head ready_queue;
+extern semd_PTR device_semaphores[SEMDEVLEN];
 
 typedef struct {
     memaddr tlb_refill_handler;

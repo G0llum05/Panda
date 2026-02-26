@@ -11,6 +11,9 @@
 // Initialize the lists "semdFree_h" and "semd_h" and add all the elements of "semd_table" to "semdFree_h"
 void initASL();
 
+// Allocates a semaphore from the free semaphores list.
+semd_t* allocSemd();
+
 // Add the PCB "p" to the semaphore with key "semAdd"
 int insertBlocked(int* semAdd, pcb_t* p);
 
