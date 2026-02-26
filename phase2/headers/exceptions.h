@@ -1,7 +1,10 @@
 #ifndef EXCEPTIONS_H
 #define EXCEPTIONS_H
 
-//Handles all exceptions, exclusive of TLB-Refill events.
+// Handles TLB-refill events exceptions.
+void uTLB_RefillHandler();
+
+// Handles all exceptions, exclusive of TLB-Refill events.
 void exceptionHandler();
 
 #endif

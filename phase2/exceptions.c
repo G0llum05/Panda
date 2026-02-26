@@ -1,6 +1,7 @@
 #include "headers/exceptions.h"
 #include <uriscv/liburiscv.h>
 #include "../headers/const.h"
+#include "../headers/types.h"
 
 // macro to determine if an exception is an interrupt or not
 // works by checking the MSB of the passed register
@@ -17,6 +18,15 @@ static void _puodHandler(int idx) {}
 // temporary function to be replaced as soon as the real
 // interrupthandler is ready in interrupts.c
 static void _interruptHandler() {}
+
+// temporary function definition in order to compile initial.c
+void uTLB_RefillHandler() {
+    int prid = getPRID();
+    setENTRYHI(0x80000000);
+    setENTRYLO(0x00000000);
+    TLBWR();
+    LDST((state_t*) BIOSDATAPAGE);
+}
 
 // Handles all exceptions, exclusive of TLB-Refill events.
 void exceptionHandler() {
