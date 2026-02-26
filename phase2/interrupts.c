@@ -36,7 +36,6 @@ void interruptHandler() {
     }
 }
 
-struct list_head* ready_queue;
 
 static void nonTimerInterrupt(int intLineNo) {
   cpu_t devNo = -1;
@@ -61,11 +60,17 @@ static void nonTimerInterrupt(int intLineNo) {
   // NOTE: Using ASL, with device register addr as key for asl list
   // TODO: decide device asl addresses
   pcb_t* proc = removeBlocked((int*)devAddr); // spec 7.5.4
+  if (proc == NULL)
+    return;
   proc->p_s.reg_a0 = status; // spec 7.5.5
-  insertProcQ(ready_queue, proc); // spec 7.5.6
+  insertProcQ(&ready_queue, proc); // spec 7.5.6
   LDST(&proc->p_s); // spec 7.5.7
 }
 
 static void localTimerInterrupt() {
-
+  // spec 7.2
+  setTIMER(TIMESLICE);
+  STST(&(running_pcb->p_s));
+  insertProcQ(&ready_queue, running_pcb);
+  scheduler();
 }
