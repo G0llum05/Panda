@@ -8,6 +8,7 @@
 #include "../headers/types.h"
 #include "../phase1/headers/asl.h"
 #include "../phase1/headers/pcb.h"
+#include "headers/initial.h"
 
 void interruptHandler() {
     int exccode = getCAUSE() & GETEXECCODE;
@@ -72,5 +73,5 @@ static void localTimerInterrupt() {
   setTIMER(TIMESLICE);
   STST(&(running_pcb->p_s));
   insertProcQ(&ready_queue, running_pcb);
-  scheduler();
+  // FIXME: call scheduler()
 }
