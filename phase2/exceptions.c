@@ -10,6 +10,20 @@
 
 #define CAUSE_CODE(cause) ((cause) & GETEXECCODE)
 
+// pass up or die sub-handler
+static void _puodHandler(int idx) {}
+
+static void _createProcess() {};
+static void _termProcess() {};
+static void _passeren() {};
+static void _verhogen() {};
+static void _doIO() {};
+static void _getTime() {};
+static void _clockWait() {};
+static void _getSupportPtr() {};
+static void _getProcessId() {};
+static void _yield() {};
+
 // syscalls sub-handler
 static void _syscallHandler() {
 
@@ -18,27 +32,51 @@ static void _syscallHandler() {
 
     // privileged syscall requested
     if(GET_EXCEPTION_STATE_PTR(0)->reg_a0 < 0) {
-
         if(mode != MSTATUS_MPP_MASK) { // review needed
-
-            // syscall not authorized, send a trap
-
+            // send a trap
+            setCAUSE(PRIVINSTR);
+            _puodHandler(GENERALEXCEPT);
         } else {
-
-            // all good, proceed
-
+            switch(GET_EXCEPTION_STATE_PTR(0)->reg_a0) {
+                case(CREATEPROCESS):
+                    _createProcess();
+                    break;
+                case(TERMPROCESS):
+                    _termProcess();
+                    break;
+                case(PASSEREN):
+                    _passeren();
+                    break;
+                case(VERHOGEN):
+                    _verhogen();
+                    break;
+                case(DOIO):
+                    _doIO();
+                    break;
+                case(GETTIME):
+                    _getTime();
+                    break;
+                case(CLOCKWAIT):
+                    _clockWait();
+                    break;
+                case(GETSUPPORTPTR):
+                    _getSupportPtr();
+                    break;
+                case(GETPROCESSID):
+                    _getProcessId();
+                    break;
+                case(YIELD):
+                    _yield();
+                    break;
+            }
         }
-
-    } else {
-
-        // non privileged syscall requested, proceed
-
     }
 
-}
+    // non existent syscall requested, send a trap
+    setCAUSE(PRIVINSTR); // review cause, privinstr is not correct
+    _puodHandler(GENERALEXCEPT);
 
-// pass up or die sub-handler
-static void _puodHandler(int idx) {}
+}
 
 // temporary function definition in order to compile initial.c
 void uTLB_RefillHandler() {
