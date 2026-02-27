@@ -1,6 +1,7 @@
 #include "headers/exceptions.h"
 #include <uriscv/liburiscv.h>
 #include "../headers/const.h"
+#include "headers/initial.h"
 #include "headers/interrupts.h"
 #include "uriscv/types.h"
 
@@ -21,7 +22,20 @@ static void _doIO() {};
 static void _getTime() {};
 static void _clockWait() {};
 static void _getSupportPtr() {};
-static void _getProcessId() {};
+
+// todo: add comments?
+static void _getProcessId() {
+    if(GET_EXCEPTION_STATE_PTR(0)->reg_a1 == 0) {
+        GET_EXCEPTION_STATE_PTR(0)->reg_a0 = running_pcb->p_pid;
+    } else {
+        if(running_pcb->p_parent == NULL) {
+            GET_EXCEPTION_STATE_PTR(0)->reg_a0 = 0;
+        } else {
+            GET_EXCEPTION_STATE_PTR(0)->reg_a0 = running_pcb->p_parent->p_pid;
+        }
+    }
+};
+
 static void _yield() {};
 
 // syscalls sub-handler
@@ -37,6 +51,10 @@ static void _syscallHandler() {
             setCAUSE(PRIVINSTR);
             _puodHandler(GENERALEXCEPT);
         } else {
+
+            // increase PC value to avoid infinite syscall loops
+            GET_EXCEPTION_STATE_PTR(0)->pc_epc += 4;
+
             switch(GET_EXCEPTION_STATE_PTR(0)->reg_a0) {
                 case(CREATEPROCESS):
                     _createProcess();
@@ -69,6 +87,9 @@ static void _syscallHandler() {
                     _yield();
                     break;
             }
+
+            // restore prev state
+            LDST(GET_EXCEPTION_STATE_PTR(0));
         }
     }
 
