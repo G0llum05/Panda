@@ -21,7 +21,10 @@ static void _verhogen() {};
 static void _doIO() {};
 static void _getTime() {};
 static void _clockWait() {};
-static void _getSupportPtr() {};
+
+static void _getSupportPtr() {
+    GET_EXCEPTION_STATE_PTR(0)->reg_a0 = (memaddr) running_pcb->p_supportStruct;
+};
 
 // todo: add comments?
 static void _getProcessId() {
