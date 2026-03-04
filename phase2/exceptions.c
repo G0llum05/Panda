@@ -1,8 +1,10 @@
-#include "headers/exceptions.h"
-#include <uriscv/liburiscv.h>
 #include "../headers/const.h"
+#include "headers/exceptions.h"
 #include "headers/initial.h"
 #include "headers/interrupts.h"
+#include "headers/scheduler.h"
+#include "phase1/headers/asl.h"
+#include "uriscv/liburiscv.h"
 #include "uriscv/types.h"
 
 // macro to determine if an exception is an interrupt or not
@@ -16,10 +18,24 @@ static void _puodHandler(int idx) {}
 
 static void _createProcess() {};
 static void _termProcess() {};
-static void _passeren() {};
+static void _passeren() {
+    state_t * processor_exception_state = GET_EXCEPTION_STATE_PTR(0);
+    int * semAdd = (int *) processor_exception_state->reg_a1; 
+    if (*semAdd > 0) {
+        *semAdd = *semAdd - 1; 
+    } else {
+        insertBlocked(semAdd, running_pcb);
+        scheduler();
+    }
+};
 static void _verhogen() {};
+
 static void _doIO() {};
-static void _getTime() {};
+
+static void _getCPUTime() {
+    GET_EXCEPTION_STATE_PTR(0)->reg_a0 = running_pcb->p_time;
+};
+
 static void _clockWait() {};
 
 static void _getSupportPtr() {
@@ -39,7 +55,14 @@ static void _getProcessId() {
     }
 };
 
-static void _yield() {};
+// CHECK: CPU state registers should be preserved in pcb_t->p_s
+static void _yield() {
+    if (!list_empty(&ready_queue)) {
+        pcb_PTR ready_pcb = running_pcb->p_list.next;
+        list_del(&running_pcb->p_list);
+        running_pcb = ready_pcb;
+    }
+};
 
 // syscalls sub-handler
 static void _syscallHandler() {
@@ -75,7 +98,7 @@ static void _syscallHandler() {
                     _doIO();
                     break;
                 case(GETTIME):
-                    _getTime();
+                    _getCPUTime();
                     break;
                 case(CLOCKWAIT):
                     _clockWait();
