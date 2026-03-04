@@ -19,8 +19,7 @@ static void _puodHandler(int idx) {}
 static void _createProcess() {};
 static void _termProcess() {};
 static void _passeren() {
-    state_t * processor_exception_state = GET_EXCEPTION_STATE_PTR(0);
-    int * semAdd = (int *) processor_exception_state->reg_a1; 
+    int * semAdd = (int *) GET_EXCEPTION_STATE_PTR(0)->reg_a1; 
     if (*semAdd > 0) {
         *semAdd = *semAdd - 1; 
     } else {
@@ -28,7 +27,18 @@ static void _passeren() {
         scheduler();
     }
 };
-static void _verhogen() {};
+
+static void _verhogen() {
+    int * semAdd = (int *) GET_EXCEPTION_STATE_PTR(0)->reg_a1;
+
+    *semAdd = *semAdd + 1;
+    removeBlocked(semAdd);
+    // Here we should invoke the scheduler only when
+    // there actually are waiting processes (semAdd <= 0) so
+    // that it can decide, based on priority, which one gets
+    // to use the resource.
+    if (*semAdd <= 0) scheduler();
+};
 
 static void _doIO() {};
 
