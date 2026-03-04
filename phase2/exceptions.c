@@ -26,15 +26,15 @@ static void _getSupportPtr() {
     GET_EXCEPTION_STATE_PTR(0)->reg_a0 = (memaddr) running_pcb->p_supportStruct;
 };
 
-// todo: add comments?
 static void _getProcessId() {
-    if(GET_EXCEPTION_STATE_PTR(0)->reg_a1 == 0) {
-        GET_EXCEPTION_STATE_PTR(0)->reg_a0 = running_pcb->p_pid;
+    state_t * processor_exception_state = GET_EXCEPTION_STATE_PTR(0);
+    if(processor_exception_state->reg_a1 == 0) {
+        processor_exception_state->reg_a0 = running_pcb->p_pid;
     } else {
         if(running_pcb->p_parent == NULL) {
-            GET_EXCEPTION_STATE_PTR(0)->reg_a0 = 0;
+            processor_exception_state->reg_a0 = 0;
         } else {
-            GET_EXCEPTION_STATE_PTR(0)->reg_a0 = running_pcb->p_parent->p_pid;
+            processor_exception_state->reg_a0 = running_pcb->p_parent->p_pid;
         }
     }
 };
