@@ -14,10 +14,10 @@ void interruptHandler() {
     int exccode = getCAUSE() & GETEXECCODE;
     switch (exccode) {
     case IL_TIMER:
-        // todo;
+        pseudoClockTick();
         break;
     case IL_CPUTIMER:
-        // todo
+        localTimerInterrupt();
         break;
     case IL_DISK:
         nonTimerInterrupt(3);
@@ -58,7 +58,6 @@ static void nonTimerInterrupt(int intLineNo) {
     devAddr->command = ACK; // acknowledge
 
     // NOTE: Using ASL, with device register addr as key for asl list
-    // TODO: decide device asl addresses
     pcb_t* proc = removeBlocked((int*)devAddr); // spec 7.5.4
     if (proc == NULL)
         return;
