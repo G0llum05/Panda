@@ -15,8 +15,24 @@
 
 #define CAUSE_CODE(cause) ((cause) & GETEXECCODE)
 
-// pass up or die sub-handler
-static void _puodHandler(int idx) {}
+// pass up or die sub-handler (spec 8)
+static void _puodHandler(int idx) {
+    support_t* support = running_pcb->p_supportStruct;
+    if (!support) {
+        // TODO: DIE!
+    }
+    // else pass up
+    state_t* state = (state_t*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
+    support->sup_exceptState[idx] =
+        (state_t){state->entry_hi, state->cause, state->status, state->pc_epc,
+                  state->mie};
+    for (int i = 0; i < STATE_GPR_LEN; i++) {
+        support->sup_exceptState[idx].gpr[i] = state->gpr[i];
+    }
+
+    context_t* context = support->sup_exceptContext;
+    LDCXT(context->stackPtr, context->status, context->pc);
+}
 
 static void _createProcess() {
     pcb_PTR new_process = allocPcb();
@@ -127,7 +143,8 @@ static void _syscallHandler() {
     int mode = GET_EXCEPTION_STATE_PTR(0)->status & MSTATUS_MPP_MASK;
 
     // privileged syscall requested
-    if (GET_EXCEPTION_STATE_PTR(0)->reg_a0 < 0) {
+    const int status = GET_EXCEPTION_STATE_PTR(0)->reg_a0;
+    if (status < 0) {
         if (mode != MSTATUS_MPP_MASK) { // review needed
             // send a trap
             setCAUSE(PRIVINSTR);
@@ -137,7 +154,7 @@ static void _syscallHandler() {
             // increase PC value to avoid infinite syscall loops
             GET_EXCEPTION_STATE_PTR(0)->pc_epc += 4;
 
-            switch (GET_EXCEPTION_STATE_PTR(0)->reg_a0) {
+            switch (status) {
             case (CREATEPROCESS):
                 _createProcess();
                 break;
@@ -174,10 +191,12 @@ static void _syscallHandler() {
             LDST(GET_EXCEPTION_STATE_PTR(0));
         }
     }
-
+    if (status >= 24 && status <= 28) // TLB exception
+        _puodHandler(PGFAULTEXCEPT);  // spec 8.3
     // non existent syscall requested, send a trap
-    setCAUSE(PRIVINSTR); // review cause, privinstr is not correct
-    _puodHandler(GENERALEXCEPT);
+    setCAUSE(PRIVINSTR);         // REVIEW: cause, privinstr is not correct
+                                 // TODO: should we setCause something?
+    _puodHandler(GENERALEXCEPT); // spec 8.{1,2}
 }
 
 // temporary function definition in order to compile initial.c
