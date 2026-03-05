@@ -1,9 +1,11 @@
 #include "../headers/const.h"
+#include "../headers/listx.h"
 #include "headers/exceptions.h"
 #include "headers/initial.h"
 #include "headers/interrupts.h"
 #include "headers/scheduler.h"
 #include "phase1/headers/asl.h"
+#include "phase1/headers/pcb.h"
 #include "uriscv/liburiscv.h"
 #include "uriscv/types.h"
 
@@ -16,8 +18,45 @@
 // pass up or die sub-handler
 static void _puodHandler(int idx) {}
 
-static void _createProcess() {};
-static void _termProcess() {};
+
+static void _createProcess() {
+    pcb_PTR new_process = allocPcb();
+    state_t * processor_exception_state = GET_EXCEPTION_STATE_PTR(0);
+    
+    if (new_process == NULL) {
+        processor_exception_state->reg_a0 = -1; 
+        return;
+    }
+    
+    state_t * new_process_state = (state_t *) processor_exception_state->reg_a1;
+    support_t * new_support_struct = (support_t *) processor_exception_state->reg_a3;
+
+
+    new_process->p_s = *new_process_state;
+
+    // If no parameter is provided in a3, allocPCB() initializes to NULL
+    if (new_support_struct != 0) new_process->p_supportStruct = new_support_struct;
+    
+    insertProcQ(&running_pcb->p_list, new_process);
+    insertChild(running_pcb, new_process);
+
+    // p_pid is initialized to static next_pid in allocPCB()
+    // p_time, p_semAdd is initialized to zero in allocPCB()
+    new_process->p_prio = processor_exception_state->reg_a2;
+    process_count++;
+
+    processor_exception_state->reg_a0 = new_process->p_pid;
+};
+
+static void _termProcess() {
+    state_t * processor_exception_state = GET_EXCEPTION_STATE_PTR(0);
+    int pid = processor_exception_state->reg_a1;
+
+    // pcb_PTR temp_pcb = &pcbFree_table[0];
+    // list_for_each()
+    
+};
+
 static void _passeren() {
     int * semAdd = (int *) GET_EXCEPTION_STATE_PTR(0)->reg_a1; 
     if (*semAdd > 0) {
