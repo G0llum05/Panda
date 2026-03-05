@@ -74,3 +74,19 @@ static void localTimerInterrupt() {
     insertProcQ(&ready_queue, running_pcb);
     // FIXME: call scheduler()
 }
+
+static void pseudoClockTick() {
+    LDIT(PSECOND); // Set interval timer spec 7.3.1
+    // spec 7.3.2
+    // HACK: Use pseudoclockTick addr as key for pseudoclock
+    int* key = (int*)pseudoClockTick;
+    do {
+        pcb_t* proc = removeBlocked(key);
+        if (proc)
+            insertProcQ(&ready_queue, proc);
+    } while (headBlocked(key));
+    // spec 7.3.3
+    if (running_pcb != NULL) {
+        LDST(&running_pcb->p_s);
+    }
+}
