@@ -1,11 +1,11 @@
 #include "../headers/const.h"
 #include "../headers/listx.h"
 #include "headers/exceptions.h"
+#include "../phase1/headers/asl.h"
+#include "../phase1/headers/pcb.h"
 #include "headers/initial.h"
 #include "headers/interrupts.h"
 #include "headers/scheduler.h"
-#include "phase1/headers/asl.h"
-#include "phase1/headers/pcb.h"
 #include "uriscv/liburiscv.h"
 #include "uriscv/types.h"
 
