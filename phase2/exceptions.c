@@ -27,12 +27,19 @@ static void _createProcess() {
         processor_exception_state->reg_a0 = -1; 
         return;
     }
-    
-    state_t * new_process_state = (state_t *) processor_exception_state->reg_a1;
-    support_t * new_support_struct = (support_t *) processor_exception_state->reg_a3;
 
+    // nps := new processor state
+    state_t* nps = (state_t*)processor_exception_state->reg_a1;
+    support_t* new_support_struct =
+        (support_t*)processor_exception_state->reg_a3;
 
-    new_process->p_s = *new_process_state;
+    // copy nps into new_process state
+    new_process->p_s = (state_t){nps->entry_hi, nps->cause, nps->status,
+                                 nps->pc_epc, nps->mie};
+    // NOTE: an array must be copied separately
+    for (int i = 0; i < STATE_GPR_LEN; i++) {
+        new_process->p_s.gpr[i] = nps->gpr[i];
+    }
 
     // If no parameter is provided in a3, allocPCB() initializes to NULL
     if (new_support_struct != 0) new_process->p_supportStruct = new_support_struct;
