@@ -1,9 +1,9 @@
 #include "headers/initial.h"
-#include "headers/exceptions.h"
-#include "headers/scheduler.h"
 #include "../headers/types.h"
 #include "../phase1/headers/asl.h"
 #include "../phase1/headers/pcb.h"
+#include "headers/exceptions.h"
+#include "headers/scheduler.h"
 #include <uriscv/types.h>
 
 unsigned int process_count;
@@ -15,12 +15,12 @@ int device_semaphores[SEMDEVLEN];
 int main() {
     INIT_LIST_HEAD(&ready_queue);
 
-    passupvector_t* pass_up_vector = (passupvector_t*) 0x0FFFF900;
+    passupvector_t* pass_up_vector = (passupvector_t*)0x0FFFF900;
 
-    pass_up_vector->tlb_refill_handler = (memaddr) uTLB_RefillHandler;
-    pass_up_vector->tlb_refill_stackPtr = (memaddr) KERNELSTACK;
-    pass_up_vector->exception_handler = (memaddr) exceptionHandler;
-    pass_up_vector->exception_stackPtr = (memaddr) KERNELSTACK;
+    pass_up_vector->tlb_refill_handler = (memaddr)uTLB_RefillHandler;
+    pass_up_vector->tlb_refill_stackPtr = (memaddr)KERNELSTACK;
+    pass_up_vector->exception_handler = (memaddr)exceptionHandler;
+    pass_up_vector->exception_stackPtr = (memaddr)KERNELSTACK;
 
     initPcbs();
     initASL();
@@ -38,7 +38,7 @@ int main() {
     list_add_tail(&first_proc->p_list, &ready_queue);
     first_proc->p_s.mie = MIE_ALL;
     first_proc->p_s.status = MSTATUS_MPIE_MASK | MSTATUS_MPP_M;
-    first_proc->p_s.pc_epc = (memaddr) test;
+    first_proc->p_s.pc_epc = (memaddr)test;
     RAMTOP(first_proc->p_s.reg_sp);
 
     scheduler();
