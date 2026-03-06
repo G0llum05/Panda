@@ -46,12 +46,13 @@ static void _createProcess() {
     state_t* new_state = (state_t*)exc_state->reg_a1;
     support_t* new_support_struct = (support_t*)exc_state->reg_a3;
 
-    // copy nps into new_process state
-    new_process->p_s = (state_t){nps->entry_hi, nps->cause, nps->status,
-                                 nps->pc_epc, nps->mie};
+    // Copy the new processor state into the new process
+    new_process->p_s =
+        (state_t){new_state->entry_hi, new_state->cause, new_state->status,
+                  new_state->pc_epc, new_state->mie};
     // NOTE: an array must be copied separately
     for (int i = 0; i < STATE_GPR_LEN; i++) {
-        new_process->p_s.gpr[i] = nps->gpr[i];
+        new_process->p_s.gpr[i] = new_state->gpr[i];
     }
 
     // If no parameter is provided in a3, allocPCB() initializes to NULL
@@ -75,7 +76,7 @@ static void _termProcess() {
 
     // pcb_PTR temp_pcb = &pcbFree_table[0];
     // list_for_each()
-};
+}
 
 static void _passeren() {
     int* semAdd = (int*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
@@ -85,32 +86,30 @@ static void _passeren() {
         insertBlocked(semAdd, running_pcb);
         scheduler();
     }
-};
+}
 
 static void _verhogen() {
     int* semAdd = (int*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
 
     *semAdd = *semAdd + 1;
     removeBlocked(semAdd);
-    // Here we should invoke the scheduler only when
-    // there actually are waiting processes (semAdd <= 0) so
-    // that it can decide, based on priority, which one gets
-    // to use the resource.
+
+    // Call only when there actually are waiting processes
     if (*semAdd <= 0)
         scheduler();
-};
+}
 
 static void _doIO() {};
 
 static void _getCPUTime() {
     GET_EXCEPTION_STATE_PTR(0)->reg_a0 = running_pcb->p_time;
-};
+}
 
 static void _clockWait() {};
 
 static void _getSupportPtr() {
     GET_EXCEPTION_STATE_PTR(0)->reg_a0 = (memaddr)running_pcb->p_supportStruct;
-};
+}
 
 static void _getProcessId() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
@@ -123,7 +122,7 @@ static void _getProcessId() {
             exc_state->reg_a0 = running_pcb->p_parent->p_pid;
         }
     }
-};
+}
 
 static void _yield() {
     // No other processes
@@ -203,7 +202,7 @@ static void _syscallHandler() {
     _puodHandler(GENERALEXCEPT); // spec 8.{1,2}
 }
 
-// temporary function definition in order to compile initial.c
+// Temporary function definition in order to compile initial.c
 void uTLB_RefillHandler() {
     int prid = getPRID();
     setENTRYHI(0x80000000);
