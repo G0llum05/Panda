@@ -36,17 +36,15 @@ static void _puodHandler(int idx) {
 
 static void _createProcess() {
     pcb_PTR new_process = allocPcb();
-    state_t* processor_exception_state = GET_EXCEPTION_STATE_PTR(0);
+    state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
 
     if (new_process == NULL) {
-        processor_exception_state->reg_a0 = -1;
+        exc_state->reg_a0 = -1;
         return;
     }
 
-    // nps := new processor state
-    state_t* nps = (state_t*)processor_exception_state->reg_a1;
-    support_t* new_support_struct =
-        (support_t*)processor_exception_state->reg_a3;
+    state_t* new_state = (state_t*)exc_state->reg_a1;
+    support_t* new_support_struct = (support_t*)exc_state->reg_a3;
 
     // copy nps into new_process state
     new_process->p_s = (state_t){nps->entry_hi, nps->cause, nps->status,
@@ -64,16 +62,16 @@ static void _createProcess() {
     insertChild(running_pcb, new_process);
 
     // p_pid is initialized to static next_pid in allocPCB()
-    // p_time, p_semAdd is initialized to zero in allocPCB()
-    new_process->p_prio = processor_exception_state->reg_a2;
+    // p_time, p_semAdd are initialized to zero in allocPCB()
+    new_process->p_prio = exc_state->reg_a2;
     process_count++;
 
-    processor_exception_state->reg_a0 = new_process->p_pid;
-};
+    exc_state->reg_a0 = new_process->p_pid;
+}
 
 static void _termProcess() {
-    state_t* processor_exception_state = GET_EXCEPTION_STATE_PTR(0);
-    int pid = processor_exception_state->reg_a1;
+    state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
+    int pid = exc_state->reg_a1;
 
     // pcb_PTR temp_pcb = &pcbFree_table[0];
     // list_for_each()
@@ -115,14 +113,14 @@ static void _getSupportPtr() {
 };
 
 static void _getProcessId() {
-    state_t* processor_exception_state = GET_EXCEPTION_STATE_PTR(0);
-    if (processor_exception_state->reg_a1 == 0) {
-        processor_exception_state->reg_a0 = running_pcb->p_pid;
+    state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
+    if (exc_state->reg_a1 == 0) {
+        exc_state->reg_a0 = running_pcb->p_pid;
     } else {
         if (running_pcb->p_parent == NULL) {
-            processor_exception_state->reg_a0 = 0;
+            exc_state->reg_a0 = 0;
         } else {
-            processor_exception_state->reg_a0 = running_pcb->p_parent->p_pid;
+            exc_state->reg_a0 = running_pcb->p_parent->p_pid;
         }
     }
 };
