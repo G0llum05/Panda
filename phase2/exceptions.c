@@ -127,14 +127,20 @@ static void _getProcessId() {
     }
 };
 
-// CHECK: CPU state registers should be preserved in pcb_t->p_s
 static void _yield() {
-    if (!list_empty(&ready_queue)) {
-        pcb_PTR ready_pcb = (pcb_PTR)running_pcb->p_list.next;
-        list_del(&running_pcb->p_list);
-        running_pcb = ready_pcb;
-    }
-};
+    // No other processes
+    if (list_empty(&ready_queue))
+        return;
+
+    pcb_PTR ready_pcb = (pcb_PTR)running_pcb->p_list.next;
+
+    // Add current process at the end of the ready queue
+    list_del(&running_pcb->p_list);
+    list_add_tail(&running_pcb->p_list, &ready_queue);
+
+    // Context switch
+    running_pcb = ready_pcb;
+}
 
 // syscalls sub-handler
 static void _syscallHandler() {
