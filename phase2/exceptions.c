@@ -215,32 +215,28 @@ void uTLB_RefillHandler() {
 }
 
 // Handles all exceptions, exclusive of TLB-Refill events.
+enum { EXC_SYSCALL = 8, EXC_BREAK = 9, TLB_FIRST = 24, TLB_LAST = 28 };
+
 void exceptionHandler() {
     unsigned int cause = getCAUSE();
 
     if (CAUSE_IS_INT(cause)) {
         interruptHandler();
-    } else
-        switch (CAUSE_CODE(cause)) {
+        return;
+    }
 
-        // syscalls
-        case (8):
-        case (11):
-            _syscallHandler();
-            break;
+    switch (CAUSE_CODE(cause)) {
+    case EXC_SYSCALL:
+    case EXC_BREAK:
+        _syscallHandler();
+        break;
 
-        // puod - tlb
-        case (24):
-        case (25):
-        case (26):
-        case (27):
-        case (28):
-            _puodHandler(PGFAULTEXCEPT);
-            break;
+    case TLB_FIRST ... TLB_LAST:
+        _puodHandler(PGFAULTEXCEPT);
+        break;
 
-        // puod - traps
-        default:
-            _puodHandler(GENERALEXCEPT);
-            break;
-        }
+    default:
+        _puodHandler(GENERALEXCEPT);
+        break;
+    }
 }
