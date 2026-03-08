@@ -70,12 +70,37 @@ static void _createProcess() {
     exc_state->reg_a0 = new_process->p_pid;
 }
 
+// Returns a pointer to the root all processes
+static pcb_PTR _getRoot() {
+    pcb_PTR temp = running_pcb;
+    for (int i = 0; temp != NULL; i++) {
+        temp = temp->p_parent;
+    }
+    return temp;
+}
+
+// Returns a pcb with pid in the process tree starting from root
+static pcb_PTR _treeSearch(int pid, pcb_PTR node) {
+    if (node->p_pid == pid)
+        return node;
+
+    pcb_PTR child;
+    list_for_each_entry(child, &node->p_child, p_sib) {
+        pcb_PTR found = _treeSearch(pid, child);
+        if (found != NULL) return found;
+    }
+
+    return NULL;
+}
+
 static void _termProcess() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
     int pid = exc_state->reg_a1;
 
-    // pcb_PTR temp_pcb = &pcbFree_table[0];
-    // list_for_each()
+    pcb_PTR root = _getRoot();
+    pcb_PTR target_pcb = _treeSearch(pid, root);
+    
+    // TODO: terminate process and its progeny
 }
 
 static void _passeren() {
