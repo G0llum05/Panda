@@ -87,7 +87,8 @@ static pcb_PTR _treeSearch(int pid, pcb_PTR node) {
     pcb_PTR child;
     list_for_each_entry(child, &node->p_child, p_sib) {
         pcb_PTR found = _treeSearch(pid, child);
-        if (found != NULL) return found;
+        if (found != NULL)
+            return found;
     }
 
     return NULL;
@@ -99,7 +100,7 @@ static void _termProcess() {
 
     pcb_PTR root = _getRoot();
     pcb_PTR target_pcb = _treeSearch(pid, root);
-    
+
     // TODO: terminate process and its progeny
 }
 
@@ -108,7 +109,11 @@ static void _passeren() {
     if (*semAdd > 0) {
         *semAdd = *semAdd - 1;
     } else {
-        insertBlocked(semAdd, running_pcb);
+        // insertBlocked returns a bool, if there is no space to alloc a new
+        // semd, it returns true, and we throw PANIC
+        if (insertBlocked(semAdd, running_pcb)) {
+            PANIC();
+        }
         scheduler();
     }
 }
@@ -116,12 +121,15 @@ static void _passeren() {
 static void _verhogen() {
     int* semAdd = (int*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
 
-    *semAdd = *semAdd + 1;
-    removeBlocked(semAdd);
-
-    // Call only when there actually are waiting processes
-    if (*semAdd <= 0)
-        scheduler();
+    pcb_t* removed_pcb = removeBlocked(semAdd);
+    // fix me, should happen semAdd get bigger than his limit.
+    // Has semAdd a limit?
+    if (removed_pcb == NULL) {
+        // there shoul be eraised a panic
+        *semAdd = *semAdd + 1;
+    } else {
+        list_add_tail(&removed_pcb->p_list, &ready_queue);
+    }
 }
 
 static void _doIO() {};
