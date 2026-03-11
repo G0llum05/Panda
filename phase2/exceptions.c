@@ -70,7 +70,7 @@ static void _createProcess() {
     exc_state->reg_a0 = new_process->p_pid;
 }
 
-// Returns a pointer to the root all processes
+// Returns a pointer to the root of all processes
 static pcb_PTR _getRoot() {
     pcb_PTR temp = running_pcb;
     for (int i = 0; temp != NULL; i++) {
@@ -79,7 +79,7 @@ static pcb_PTR _getRoot() {
     return temp;
 }
 
-// Returns a pcb with pid in the process tree starting from root
+// Returns a pcb with the given pid
 static pcb_PTR _treeSearch(int pid, pcb_PTR node) {
     if (node->p_pid == pid)
         return node;
@@ -94,6 +94,19 @@ static pcb_PTR _treeSearch(int pid, pcb_PTR node) {
     return NULL;
 }
 
+// Function that terminates a process and all its children recursively
+static void _termChildren(pcb_PTR node) {
+    if (node == NULL) 
+        return;
+
+    pcb_PTR child;
+    list_for_each_entry(child, &node->p_child, p_sib) {
+        _termChildren(child);
+        freePcb(child);     // Returns void, so no branching
+        outBlocked(child);  // Returns NULL only when child does not exist
+    }
+}
+
 static void _termProcess() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
     int pid = exc_state->reg_a1;
@@ -101,7 +114,7 @@ static void _termProcess() {
     pcb_PTR root = _getRoot();
     pcb_PTR target_pcb = _treeSearch(pid, root);
 
-    // TODO: terminate process and its progeny
+    _termChildren(target_pcb);
 }
 
 static void _passeren() {
