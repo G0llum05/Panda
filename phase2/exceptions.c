@@ -119,11 +119,12 @@ static void _termProcess() {
 
 static void _passeren() {
     int* semAdd = (int*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
+    
     if (*semAdd > 0) {
         *semAdd = *semAdd - 1;
     } else {
-        // insertBlocked returns a bool, if there is no space to alloc a new
-        // semd, it returns true, and we throw PANIC
+        // insertBlocked returns a positive integer if an error
+        // occurred, and we throw PANIC
         if (insertBlocked(semAdd, running_pcb)) {
             PANIC();
         }
@@ -135,13 +136,14 @@ static void _verhogen() {
     int* semAdd = (int*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
 
     pcb_t* removed_pcb = removeBlocked(semAdd);
-    // fix me, should happen semAdd get bigger than his limit.
-    // Has semAdd a limit?
+    
     if (removed_pcb == NULL) {
-        // there shoul be eraised a panic
+	// the sem is always allocated in the table, so no worries
+	// simply not in active list
         *semAdd = *semAdd + 1;
+	// REVIEW: should activate sem?
     } else {
-        list_add_tail(&removed_pcb->p_list, &ready_queue);
+	insertProcQ(ready_queue, removed_pcb); // NOTE: resource is ready => now proc is ready 
     }
 }
 
