@@ -80,7 +80,7 @@ static void _createProcess() {
 // Returns a pointer to the root of all processes
 static pcb_PTR _getRoot() {
     pcb_PTR temp = running_pcb;
-    for (int i = 0; temp != NULL; i++) {
+    while (temp != NULL) {
         temp = temp->p_parent;
     }
     return temp;
@@ -103,7 +103,7 @@ static pcb_PTR _treeSearch(int pid, pcb_PTR node) {
 
 // Function that terminates a process and all its children recursively
 static void _termChildren(pcb_PTR node) {
-    if (node == NULL) 
+    if (node == NULL)
         return;
 
     pcb_PTR child;
@@ -176,14 +176,14 @@ static void _getSupportPtr() {
 
 static void _getProcessId() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
+
     if (exc_state->reg_a1 == 0) {
         exc_state->reg_a0 = running_pcb->p_pid;
+    } else if (running_pcb->p_parent == NULL) {
+        // Spec 6.9: Calling process is root, return 0
+        exc_state->reg_a0 = 0;
     } else {
-        if (running_pcb->p_parent == NULL) {
-            exc_state->reg_a0 = 0;
-        } else {
-            exc_state->reg_a0 = running_pcb->p_parent->p_pid;
-        }
+        exc_state->reg_a0 = running_pcb->p_parent->p_pid;
     }
 }
 
@@ -256,9 +256,8 @@ static void _syscallHandler() {
             // restore prev state
             LDST(GET_EXCEPTION_STATE_PTR(0));
         }
-    }
-    if (status >= 24 && status <= 28) // TLB exception
-        _puodHandler(PGFAULTEXCEPT);  // spec 8.3
+    } else if (status >= 24 && status <= 28) // TLB exception
+        _puodHandler(PGFAULTEXCEPT);         // spec 8.3
     // non existent syscall requested, send a trap
     setCAUSE(PRIVINSTR);         // REVIEW: cause, privinstr is not correct
                                  // TODO: should we setCause something?
