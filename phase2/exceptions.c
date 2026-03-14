@@ -1,19 +1,33 @@
-#include "headers/exceptions.h"
 #include "../headers/const.h"
 #include "../headers/listx.h"
+
 #include "../phase1/headers/asl.h"
 #include "../phase1/headers/pcb.h"
+
+#include "headers/exceptions.h"
 #include "headers/initial.h"
 #include "headers/interrupts.h"
 #include "headers/scheduler.h"
-#include "uriscv/liburiscv.h"
-#include "uriscv/types.h"
 
-// macro to determine if an exception is an interrupt or not
-// works by checking the MSB of the passed register
+#include <uriscv/liburiscv.h>
+#include <uriscv/types.h>
+
+// Macro to determine if an exception is an interrupt or not.
+// Works by checking the MSB of the passed register
 #define CAUSE_IS_INT(cause) (((cause) & 0x80000000) != 0)
 
 #define CAUSE_CODE(cause) ((cause) & GETEXECCODE)
+
+// Function to copy a cpu state into a process->p_s
+static void copyState(state_t* cpu_state, pcb_PTR process) {
+    process->p_s =
+        (state_t){cpu_state->entry_hi, cpu_state->cause, cpu_state->status,
+                  cpu_state->pc_epc, cpu_state->mie};
+    // NOTE: an array must be copied separately
+    for (int i = 0; i < STATE_GPR_LEN; i++) {
+        process->p_s.gpr[i] = cpu_state->gpr[i];
+    }
+}
 
 // pass up or die sub-handler (spec 8)
 static void _puodHandler(int idx) {
@@ -46,14 +60,7 @@ static void _createProcess() {
     state_t* new_state = (state_t*)exc_state->reg_a1;
     support_t* new_support_struct = (support_t*)exc_state->reg_a3;
 
-    // Copy the new processor state into the new process
-    new_process->p_s =
-        (state_t){new_state->entry_hi, new_state->cause, new_state->status,
-                  new_state->pc_epc, new_state->mie};
-    // NOTE: an array must be copied separately
-    for (int i = 0; i < STATE_GPR_LEN; i++) {
-        new_process->p_s.gpr[i] = new_state->gpr[i];
-    }
+    copyState(new_state, new_process);
 
     // If no parameter is provided in a3, allocPCB() initializes to NULL
     if (new_support_struct != 0)
