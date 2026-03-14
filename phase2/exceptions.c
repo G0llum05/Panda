@@ -124,33 +124,41 @@ static void _termProcess() {
     _termChildren(target_pcb);
 }
 
+/*  NOTE:
+    Positive semaphore values mean available resources.
+    Negative semaphore values mean waiting processes.
+    Semaphore value set to zero means no waiting/available.
+*/
 static void _passeren() {
-    int* semAdd = (int*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
-    
-    if (*semAdd > 0) {
-        *semAdd = *semAdd - 1;
-    } else {
-        // insertBlocked returns a positive integer if an error
-        // occurred, and we throw PANIC
-        if (insertBlocked(semAdd, running_pcb)) {
-            PANIC();
-        }
+    state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
+    int* semAdd = (int*)cpu_state->reg_a1;
+
+    *semAdd = *semAdd - 1;
+
+    // The running process has to wait for the resource
+    if (*semAdd < 0) {
+        insertBlocked(semAdd, running_pcb);
+        copyState(cpu_state, running_pcb);
+
+        // The scheduler must know that there's no running process
+        // so that it can dispatch a new one properly.
+        running_pcb = NULL;
         scheduler();
     }
+
+    // If resources were available, there's no need to call a scheduler
 }
 
 static void _verhogen() {
-    int* semAdd = (int*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
+    memaddr* semAdd = (memaddr*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
 
-    pcb_t* removed_pcb = removeBlocked(semAdd);
-    
-    if (removed_pcb == NULL) {
-	// the sem is always allocated in the table, so no worries
-	// simply not in active list
-        *semAdd = *semAdd + 1;
-	// REVIEW: should activate sem?
-    } else {
-	insertProcQ(ready_queue, removed_pcb); // NOTE: resource is ready => now proc is ready 
+    *semAdd = *semAdd + 1;
+
+    // If there were blocked processes, unblock one
+    if (*semAdd <= 0) {
+        pcb_t* removed_pcb = removeBlocked((int*)semAdd);
+        if (removed_pcb != NULL)
+            insertProcQ(&ready_queue, removed_pcb);
     }
 }
 
