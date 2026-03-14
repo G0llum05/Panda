@@ -1,16 +1,18 @@
-#include "headers/initial.h"
 #include "../headers/types.h"
+
 #include "../phase1/headers/asl.h"
 #include "../phase1/headers/pcb.h"
+
 #include "headers/exceptions.h"
+#include "headers/initial.h"
 #include "headers/scheduler.h"
+
 #include <uriscv/types.h>
 
 unsigned int process_count;
 unsigned int soft_block_count;
 pcb_PTR running_pcb;
 struct list_head ready_queue;
-int device_semaphores[SEMDEVLEN];
 
 int main() {
     INIT_LIST_HEAD(&ready_queue);
