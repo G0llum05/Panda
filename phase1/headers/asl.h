@@ -5,7 +5,6 @@
 #ifndef ASL_H_INCLUDED
 #define ASL_H_INCLUDED
 
-#include "../../headers/listx.h"
 #include "../../headers/types.h"
 
 // Initialize the lists "semdFree_h" and "semd_h" and add all the elements of "semd_table" to "semdFree_h"

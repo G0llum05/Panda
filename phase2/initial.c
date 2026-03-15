@@ -13,6 +13,7 @@ unsigned int process_count;
 unsigned int soft_block_count;
 pcb_PTR running_pcb;
 struct list_head ready_queue;
+int device_semaphores[SEMDEVLEN];
 
 int main() {
     INIT_LIST_HEAD(&ready_queue);
@@ -26,6 +27,11 @@ int main() {
 
     initPcbs();
     initASL();
+
+    // Initialize all memory locations for semaphores
+    for (int i = 0; i < SEMDEVLEN; i++) {
+        device_semaphores[i] = 0;
+    }
 
     process_count = 0;
     soft_block_count = 0;
