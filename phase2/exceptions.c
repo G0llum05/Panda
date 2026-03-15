@@ -8,6 +8,7 @@
 #include "headers/initial.h"
 #include "headers/interrupts.h"
 #include "headers/scheduler.h"
+#include "uriscv/const.h"
 
 #include <uriscv/liburiscv.h>
 #include <uriscv/types.h>
@@ -109,8 +110,8 @@ static void _termChildren(pcb_PTR node) {
     pcb_PTR child;
     list_for_each_entry(child, &node->p_child, p_sib) {
         _termChildren(child);
-        freePcb(child);     // Returns void, so no branching
-        outBlocked(child);  // Returns NULL only when child does not exist
+        freePcb(child);    // Returns void, so no branching
+        outBlocked(child); // Returns NULL only when child does not exist
     }
 }
 
@@ -138,6 +139,7 @@ static void _passeren() {
     // The running process has to wait for the resource
     if (*semAdd < 0) {
         insertBlocked(semAdd, running_pcb);
+
         copyState(cpu_state, running_pcb);
 
         // The scheduler must know that there's no running process
@@ -162,7 +164,41 @@ static void _verhogen() {
     }
 }
 
-static void _doIO() {};
+static void _doIO() {
+    state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
+
+    // Get the index (0-39) of the semaphore associated to the device
+    int semaphore_index = (cpu_state->reg_a1 - START_DEVREG) / DEVREGLEN;
+
+    // The device is a terminal device, and we need to know if
+    // it's a command to transmit or receive
+    if (semaphore_index > 32) {
+        memaddr terminal_address = START_DEVREG + (semaphore_index * DEVREGLEN);
+
+        // If the command is located in the transmitter register, it is
+        // an output command and we need to jump to the correct semaphore
+        if ((terminal_address + 12) == cpu_state->reg_a1)
+            semaphore_index += 8;
+    }
+
+    int* semAdd = &device_semaphores[semaphore_index];
+
+    // Now we perform a passeren on the target semaphore
+
+    *semAdd = *semAdd - 1;
+
+    if (*semAdd < 0) {
+        insertBlocked(semAdd, running_pcb);
+
+        copyState(cpu_state, running_pcb);
+
+        running_pcb = NULL;
+        scheduler();
+    }
+
+    // NOTE: it is job of the interrupt handler to return the value
+    // in a0 upon completing terminal I/O.
+};
 
 static void _getCPUTime() {
     GET_EXCEPTION_STATE_PTR(0)->reg_a0 = running_pcb->p_time;
