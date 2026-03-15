@@ -125,15 +125,7 @@ static void _termProcess() {
     _termChildren(target_pcb);
 }
 
-/*  NOTE:
-    Positive semaphore values mean available resources.
-    Negative semaphore values mean waiting processes.
-    Semaphore value set to zero means no waiting/available.
-*/
-static void _passeren() {
-    state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
-    int* semAdd = (int*)cpu_state->reg_a1;
-
+static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
     *semAdd = *semAdd - 1;
 
     // The running process has to wait for the resource
@@ -149,6 +141,18 @@ static void _passeren() {
     }
 
     // If resources were available, there's no need to call a scheduler
+}
+
+/*  NOTE:
+    Positive semaphore values mean available resources.
+    Negative semaphore values mean waiting processes.
+    Semaphore value set to zero means no waiting/available.
+*/
+static void _passeren() {
+    state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
+    int* semAdd = (int*)cpu_state->reg_a1;
+
+    _reusablePasseren(cpu_state, semAdd);
 }
 
 static void _verhogen() {
@@ -185,18 +189,9 @@ static void _doIO() {
 
     // Now we perform a passeren on the target semaphore
 
-    *semAdd = *semAdd - 1;
+    _reusablePasseren(cpu_state, semAdd);
 
-    if (*semAdd < 0) {
-        insertBlocked(semAdd, running_pcb);
-
-        copyState(cpu_state, running_pcb);
-
-        running_pcb = NULL;
-        scheduler();
-    }
-
-    // NOTE: it is job of the interrupt handler to return the value
+    // NOTE: it is a job of the interrupt handler to return the value
     // in a0 upon completing terminal I/O.
 };
 
@@ -204,7 +199,9 @@ static void _getCPUTime() {
     GET_EXCEPTION_STATE_PTR(0)->reg_a0 = running_pcb->p_time;
 }
 
-static void _clockWait() {};
+static void _clockWait() {
+    _reusablePasseren(GET_EXCEPTION_STATE_PTR(0), &pseudo_clock_semaphore);
+};
 
 static void _getSupportPtr() {
     GET_EXCEPTION_STATE_PTR(0)->reg_a0 = (memaddr)running_pcb->p_supportStruct;
@@ -235,7 +232,7 @@ static void _yield() {
     list_del(&running_pcb->p_list);
     list_add_tail(&running_pcb->p_list, &ready_queue);
 
-    // Context switch
+    // Call a ready process
     running_pcb = NULL;
     scheduler();
 }

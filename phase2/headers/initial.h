@@ -19,5 +19,6 @@ extern void test();
    Line 7 (Term Output)  = indices 40-47
 */
 extern int device_semaphores[SEMDEVLEN];
+extern int pseudo_clock_semaphore;
 
 #endif

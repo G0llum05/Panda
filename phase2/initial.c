@@ -14,6 +14,7 @@ unsigned int soft_block_count;
 pcb_PTR running_pcb;
 struct list_head ready_queue;
 int device_semaphores[SEMDEVLEN];
+int pseudo_clock_semaphore;
 
 int main() {
     INIT_LIST_HEAD(&ready_queue);
@@ -32,6 +33,8 @@ int main() {
     for (int i = 0; i < SEMDEVLEN; i++) {
         device_semaphores[i] = 0;
     }
+
+    pseudo_clock_semaphore = 0;
 
     process_count = 0;
     soft_block_count = 0;
