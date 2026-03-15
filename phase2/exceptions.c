@@ -192,14 +192,16 @@ static void _yield() {
     if (list_empty(&ready_queue))
         return;
 
-    pcb_PTR ready_pcb = (pcb_PTR)running_pcb->p_list.next;
+    // Save current process state
+    copyState(GET_EXCEPTION_STATE_PTR(0), running_pcb);
 
     // Add current process at the end of the ready queue
     list_del(&running_pcb->p_list);
     list_add_tail(&running_pcb->p_list, &ready_queue);
 
     // Context switch
-    running_pcb = ready_pcb;
+    running_pcb = NULL;
+    scheduler();
 }
 
 // syscalls sub-handler
