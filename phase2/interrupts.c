@@ -53,12 +53,15 @@ static void nonTimerInterrupt(int intLineNo) {
         return;
 
     dtpreg_t* devAddr = (dtpreg_t*)DEV_REG_ADDR(intLineNo, devNo);
-
     cpu_t status = devAddr->status;
     devAddr->command = ACK; // acknowledge
 
-    // NOTE: Using ASL, with device register addr as key for asl list
-    pcb_t* proc = removeBlocked((int*)devAddr); // spec 7.5.4
+    if ((int)devAddr < START_DEVREG)
+        return; // REVIEW: should pass-up-or-die?
+
+    memaddr index = (memaddr)(devAddr - START_DEVREG) / sizeof(devreg_t);
+    pcb_t* proc = removeBlocked((int*)device_semaphores + index); // spec 7.5.4
+
     if (proc == NULL)
         return;
     proc->p_s.reg_a0 = status;       // spec 7.5.5
@@ -78,12 +81,12 @@ static void pseudoClockTick() {
     LDIT(PSECOND); // Set interval timer spec 7.3.1
     // spec 7.3.2
     // HACK: Use pseudoclockTick addr as key for pseudoclock
-    int* key = (int*)pseudoClockTick;
+    memaddr index = (memaddr)49;
     do {
-        pcb_t* proc = removeBlocked(key);
+        pcb_t* proc = removeBlocked((int*)device_semaphores + index);
         if (proc)
             insertProcQ(&ready_queue, proc);
-    } while (headBlocked(key));
+    } while (headBlocked((int*)device_semaphores + index));
     // spec 7.3.3
     if (running_pcb != NULL) {
         LDST(&running_pcb->p_s);
