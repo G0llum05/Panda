@@ -101,35 +101,43 @@ pcb_t *outProcQ(struct list_head *head, pcb_t *p) {
 int emptyChild(pcb_t *p) { return list_empty(&p->p_child); }
 
 void insertChild(pcb_t *prnt, pcb_t *p) {
-	list_add_tail(&p->p_child, &prnt->p_child);
-	p->p_parent = prnt;
+    if (list_empty(&prnt->p_child)) {
+        list_add_tail(&p->p_child, &prnt->p_child);
+    } else {
+        // REVIEW: il primo è la sentinella ?
+        struct list_head* node = prnt->p_child.next;
+        pcb_t* child = container_of(node, pcb_t, p_child);
+        list_add_tail(&p->p_sib, &child->p_sib);
+    }
+    p->p_parent = prnt;
+	/* list_add_tail(&p->p_child, &prnt->p_child); */
+	/* p->p_parent = prnt; */
 }
 
 pcb_t *removeChild(pcb_t *p) {
 	if (list_empty(&p->p_child)) return NULL;
 
-	struct list_head *new_free_node = p->p_child.next;
-	list_del(new_free_node);
-	struct pcb_t *child_pcb = container_of(new_free_node, pcb_t, p_child);
+	struct list_head *cnode = p->p_child.next; // to be deleted
+	pcb_t *child_pcb = container_of(cnode, pcb_t, p_child);
+  struct list_head *snode = child_pcb->p_sib.next;
+  pcb_t *sibiling_pcb = container_of(snode, pcb_t, p_sib);
+
+  // detach child
 	child_pcb->p_parent = NULL;
+  p->p_child.next = &sibiling_pcb->p_child;
+
+  list_del(&child_pcb->p_sib); // remove it from sibilings
 	return child_pcb;
 }
 
 pcb_t *outChild(pcb_t *p) {
 	if (p->p_parent == NULL) return NULL;
-	
-	struct pcb_t *parent = p->p_parent;
-	struct list_head *parent_child = &parent->p_child;
-	struct list_head *pos = parent_child->next;
-
-	list_for_each(pos, parent_child) {
-		struct pcb_t *pcb_node = container_of(pos, pcb_t, p_child);
-		if (p == pcb_node) {
-			list_del(pos);
-			p->p_parent = NULL;
-			return p;
-		}
-	}
-
-	return NULL;
+  if(p->p_parent->p_child.next == &p->p_child){
+    // first child
+    return removeChild(p->p_parent);
+  }else{
+    list_del(&p->p_sib);
+    p->p_parent = NULL;
+	  return p;
+  }
 }
