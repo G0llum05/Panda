@@ -98,13 +98,15 @@ pcb_t *outProcQ(struct list_head *head, pcb_t *p) {
 	return NULL;
 }
 
-int emptyChild(pcb_t *p) { return list_empty(&p->p_child); }
+int emptyChild(pcb_t *p) {
+  pcb_t* next_child = container_of(p->p_child.next, pcb_t, p_child);
+  return next_child->p_parent != p; // Not out child, list circled, emptyChild
+}
 
 void insertChild(pcb_t *prnt, pcb_t *p) {
-    if (list_empty(&prnt->p_child)) {
+    if (emptyChild(prnt)) {
         list_add_tail(&p->p_child, &prnt->p_child);
     } else {
-        // REVIEW: il primo è la sentinella ?
         struct list_head* node = prnt->p_child.next;
         pcb_t* child = container_of(node, pcb_t, p_child);
         list_add_tail(&p->p_sib, &child->p_sib);
@@ -115,7 +117,7 @@ void insertChild(pcb_t *prnt, pcb_t *p) {
 }
 
 pcb_t *removeChild(pcb_t *p) {
-	if (list_empty(&p->p_child)) return NULL;
+	if (emptyChild(p)) return NULL;
 
 	struct list_head *cnode = p->p_child.next; // to be deleted
 	pcb_t *child_pcb = container_of(cnode, pcb_t, p_child);
@@ -138,6 +140,6 @@ pcb_t *outChild(pcb_t *p) {
   }else{
     list_del(&p->p_sib);
     p->p_parent = NULL;
-	  return p;
+    return p;
   }
 }
