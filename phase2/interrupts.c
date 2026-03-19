@@ -80,7 +80,6 @@ static void localTimerInterrupt() {
 static void pseudoClockTick() {
     LDIT(PSECOND); // Set interval timer spec 7.3.1
     // spec 7.3.2
-    // HACK: Use pseudoclockTick addr as key for pseudoclock
     memaddr index = (memaddr)49;
     do {
         pcb_t* proc = removeBlocked((int*)device_semaphores + index);
