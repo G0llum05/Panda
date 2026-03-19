@@ -42,6 +42,11 @@ void scheduler() {
         klog_print("Scheduler: Be waitin\n");
         __STEP();
 #endif
+        // 3.2 Important remark
+        setMIE(MIE_ALL & ~MIE_MTIE_MASK);
+        unsigned int status = getSTATUS();
+        status |= MSTATUS_MIE_MASK;
+        setSTATUS(status);
         WAIT();
     }
 }
