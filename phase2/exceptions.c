@@ -8,8 +8,8 @@
 #include "headers/initial.h"
 #include "headers/interrupts.h"
 #include "headers/scheduler.h"
-#include "uriscv/const.h"
 
+#include <uriscv/const.h>
 #include <uriscv/liburiscv.h>
 #include <uriscv/types.h>
 
@@ -172,24 +172,51 @@ static void _doIO() {
     state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
 
     // Get the index (0-39) of the semaphore associated to the device
-    int semaphore_index = (cpu_state->reg_a1 - START_DEVREG) / DEVREGLEN;
-
+    int semaphore_index = (cpu_state->reg_a1 - START_DEVREG) / sizeof(devreg_t);
+    
     // The device is a terminal device, and we need to know if
     // it's a command to transmit or receive
-    if (semaphore_index > 32) {
-        memaddr terminal_address = START_DEVREG + (semaphore_index * DEVREGLEN);
+    if (semaphore_index >= 32) {
+        termreg_t* terminal_address = (termreg_t*)(START_DEVREG + (semaphore_index * sizeof(devreg_t))); 
+        
+        memaddr* commandp = &terminal_address->recv_command;
+        memaddr* statusp = &terminal_address->recv_status;
 
-        // If the command is located in the transmitter register, it is
-        // an output command and we need to jump to the correct semaphore
-        if ((terminal_address + 12) == cpu_state->reg_a1)
+        // If the command's address is the transmitter register, we
+        // need to use the terminal output semaphore
+        if (commandp != cpu_state->reg_a1) {
+            // NOTE: view initial.h interrupt line map
             semaphore_index += 8;
-    }
 
-    int* semAdd = &device_semaphores[semaphore_index];
+            statusp = &terminal_address->transm_status;
+            commandp = &terminal_address->transm_command;
+        }
+
+        // We need to tell the terminal the command stored in reg_a2
+        if (*statusp == READY || *statusp == 5)
+            *commandp = cpu_state->reg_a2;
+        // REVIEW: If terminal is not ready we shouldn't wait.
+        // Access should be regulated via a mutex, not busy waiting.
+        // See print in p2test.c
+        // REVIEW: In case of error we return the status word != ready
+        else {
+            cpu_state->reg_a0 = *statusp;
+            return;
+        }
+    } else {
+        dtpreg_t* device_address = (dtpreg_t*) (START_DEVREG + (semaphore_index * sizeof(devreg_t)));
+
+        if (device_address->status == READY)
+            device_address->command = cpu_state->reg_a2;
+        else {
+            cpu_state->reg_a0 = device_address->status;
+            return;
+        }
+    }
 
     // Now we perform a passeren on the target semaphore
 
-    _reusablePasseren(cpu_state, semAdd);
+    _reusablePasseren(cpu_state, &device_semaphores[semaphore_index]);
 
     // NOTE: it is a job of the interrupt handler to return the value
     // in a0 upon completing terminal I/O.
