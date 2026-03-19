@@ -9,8 +9,12 @@
 #include "../phase1/headers/asl.h"
 #include "../phase1/headers/pcb.h"
 #include "headers/initial.h"
+#include "headers/klog.h"
 
 void interruptHandler() {
+#ifdef DEBUG
+    klog_print("interruptHandler\n");
+#endif
     int exccode = getCAUSE() & GETEXECCODE;
     switch (exccode) {
     case IL_TIMER:
@@ -38,6 +42,9 @@ void interruptHandler() {
 }
 
 static void nonTimerInterrupt(int intLineNo) {
+#ifdef DEBUG
+    klog_print("nonTimerInterrupt\n");
+#endif
     cpu_t devNo = -1;
 
     // decreasing priority: 0x10000040 (l3) .. 0x10000040+0x10 (l7)
@@ -67,9 +74,13 @@ static void nonTimerInterrupt(int intLineNo) {
     proc->p_s.reg_a0 = status;       // spec 7.5.5
     insertProcQ(&ready_queue, proc); // spec 7.5.6
     LDST(&proc->p_s);                // spec 7.5.7
+    LDST(&proc->p_s); // spec 7.5.7
 }
 
 static void localTimerInterrupt() {
+#ifdef DEBUG
+    klog_print("localTimerInterrupt\n");
+#endif
     // spec 7.2
     setTIMER(TIMESLICE);
     STST(&(running_pcb->p_s));
@@ -78,6 +89,9 @@ static void localTimerInterrupt() {
 }
 
 static void pseudoClockTick() {
+#ifdef DEBUG
+    klog_print("pseudoClockTick\n");
+#endif
     LDIT(PSECOND); // Set interval timer spec 7.3.1
     // spec 7.3.2
     memaddr index = (memaddr)49;
