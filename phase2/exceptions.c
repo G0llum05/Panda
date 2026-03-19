@@ -156,6 +156,7 @@ static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
     // The running process has to wait for the resource
     if (*semAdd < 0) {
         insertBlocked(semAdd, running_pcb);
+        soft_block_count++;
         copyState(cpu_state, running_pcb);
 
         // The scheduler must know that there's no running process

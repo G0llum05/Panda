@@ -73,7 +73,7 @@ static void nonTimerInterrupt(int intLineNo) {
         return;
     proc->p_s.reg_a0 = status;       // spec 7.5.5
     insertProcQ(&ready_queue, proc); // spec 7.5.6
-    LDST(&proc->p_s);                // spec 7.5.7
+    soft_block_count--;
     LDST(&proc->p_s); // spec 7.5.7
 }
 
