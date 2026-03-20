@@ -13,6 +13,8 @@
 #include "headers/scheduler.h"
 #include "headers/shared.h"
 
+#define TERMSTATMASK 0xFF
+
 static void nonTimerInterrupt(int intlineNo);
 static void localTimerInterrupt();
 static void pseudoClockTick();
@@ -73,7 +75,7 @@ static void nonTimerInterrupt(int intLineNo) {
         int base_sem_index = 32 + devNo; // for terminals: +0 output +8 input
 
         // Transmitter is higher priority than receiver
-        if (termAddr->transm_status == OKCHARTRANS) {
+        if ((termAddr->transm_status & TERMSTATMASK) == OKCHARTRANS) {
             final_status = termAddr->transm_status;
             termAddr->transm_command = ACK;
             proc = removeBlocked((int*)&device_semaphores[base_sem_index + 8]);
