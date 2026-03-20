@@ -119,8 +119,6 @@ void print(char* msg) {
 
     SYSCALL(PASSEREN, (int)&sem_term_mut, 0, 0); /* P(sem_term_mut) */
     while (*s != EOS) {
-        klog_print_dec((unsigned int)s);
-        klog_print("\n");
         devregtr value = PRINTCHR | (((devregtr)*s) << 8);
         status = SYSCALL(DOIO, (int)command, (int)value, 0);
         if ((status & TERMSTATMASK) != RECVD) {
@@ -164,7 +162,7 @@ void test() {
     }
 
     print("p1 v(sem_testsem)\n");
-
+    _STEP();
     /* set up states of the other processes */
 
     STST(&hp_p1state);
@@ -275,6 +273,7 @@ void test() {
                     (int)NULL); /* start p2     */
 
     print("p2 was started\n");
+    _STEP();
 
     SYSCALL(VERHOGEN, (int)&sem_startp2, 0, 0); /* V(sem_startp2)   */
 

@@ -20,7 +20,17 @@ unsigned int klog_char_index = 0; // Index of the current character in the line
 char klog_buffer[KLOG_LINES][KLOG_LINE_SIZE] = {
     0}; // Actual buffer, to be traced in uMPS3
 
-void __STEP() { klog_print(""); }
+inline void _STEP() {
+#ifdef DEBUG
+    klog_print("");
+#endif
+}
+
+inline void klog(char* msg) {
+#ifdef DEBUG
+    klog_print(msg);
+#endif
+}
 
 // Print str to klog
 void klog_print(char* str) {

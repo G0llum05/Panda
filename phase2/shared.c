@@ -6,9 +6,6 @@
 #include <uriscv/types.h>
 
 void _copyState(state_t* src, state_t* dest) {
-#ifdef DEBUG
-    klog_print("copyState\n");
-#endif
     // Consider a struct as an array of u_int
     unsigned int* dest_ptr = (unsigned int*)dest;
     unsigned int* src_ptr = (unsigned int*)src;

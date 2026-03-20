@@ -23,9 +23,6 @@
 
 // pass up or die sub-handler (spec 8)
 static void _puodHandler(int idx) {
-#ifdef DEBUG
-    klog_print("_puodHandler\n");
-#endif
     support_t* support = running_pcb->p_supportStruct;
     if (!support) {
         // TODO: DIE!
@@ -44,9 +41,6 @@ static void _puodHandler(int idx) {
 }
 
 static void _createProcess() {
-#ifdef DEBUG
-    klog_print("_createProcess\n");
-#endif
     pcb_PTR new_process = allocPcb();
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
 
@@ -77,9 +71,6 @@ static void _createProcess() {
 
 // Returns a pointer to the root of all processes
 static pcb_PTR _getRoot() {
-#ifdef DEBUG
-    klog_print("_getRoot\n");
-#endif
     pcb_PTR temp = running_pcb;
     while (temp != NULL) {
         temp = temp->p_parent;
@@ -89,9 +80,6 @@ static pcb_PTR _getRoot() {
 
 // Returns a pcb with the given pid
 static pcb_PTR _treeSearch(int pid, pcb_PTR node) {
-#ifdef DEBUG
-    klog_print("_treeSearch\n");
-#endif
     if (node->p_pid == pid)
         return node;
 
@@ -107,9 +95,6 @@ static pcb_PTR _treeSearch(int pid, pcb_PTR node) {
 
 // Function that terminates a process and all its children recursively
 static void _termChildren(pcb_PTR node) {
-#ifdef DEBUG
-    klog_print("_termChildren\n");
-#endif
     if (node == NULL)
         return;
 
@@ -122,9 +107,6 @@ static void _termChildren(pcb_PTR node) {
 }
 
 static void _termProcess() {
-#ifdef DEBUG
-    klog_print("_termProcess\n");
-#endif
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
     int pid = exc_state->reg_a1;
 
@@ -135,9 +117,6 @@ static void _termProcess() {
 }
 
 static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
-#ifdef DEBUG
-    klog_print("_reusablePasseren\n");
-#endif
     *semAdd = *semAdd - 1;
 
     // The running process has to wait for the resource
@@ -161,9 +140,6 @@ static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
     Semaphore value set to zero means no waiting/available.
 */
 static void _passeren() {
-#ifdef DEBUG
-    klog_print("_passeren\n");
-#endif
     state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
     int* semAdd = (int*)cpu_state->reg_a1;
 
@@ -171,9 +147,6 @@ static void _passeren() {
 }
 
 static void _verhogen() {
-#ifdef DEBUG
-    klog_print("_verhogen\n");
-#endif
     memaddr* semAdd = (memaddr*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
 
     *semAdd = *semAdd + 1;
@@ -187,9 +160,6 @@ static void _verhogen() {
 }
 
 static void _doIO() {
-#ifdef DEBUG
-    klog_print("_doIO\n");
-#endif
     state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
 
     // Get the index (0-39) of the semaphore associated to the device
@@ -206,7 +176,7 @@ static void _doIO() {
 
         // If the command's address is the transmitter register, we
         // need to use the terminal output semaphore
-        if (commandp != cpu_state->reg_a1) {
+        if (commandp != (unsigned int*)cpu_state->reg_a1) {
             // NOTE: view initial.h interrupt line map
             semaphore_index += 8;
 
@@ -246,30 +216,18 @@ static void _doIO() {
 };
 
 static void _getCPUTime() {
-#ifdef DEBUG
-    klog_print("_getCPUTime\n");
-#endif
     GET_EXCEPTION_STATE_PTR(0)->reg_a0 = running_pcb->p_time;
 }
 
 static void _clockWait() {
-#ifdef DEBUG
-    klog_print("_clockWait\n");
-#endif
     _reusablePasseren(GET_EXCEPTION_STATE_PTR(0), &pseudo_clock_semaphore);
 };
 
 static void _getSupportPtr() {
-#ifdef DEBUG
-    klog_print("_getSupportPtr\n");
-#endif
     GET_EXCEPTION_STATE_PTR(0)->reg_a0 = (memaddr)running_pcb->p_supportStruct;
 }
 
 static void _getProcessId() {
-#ifdef DEBUG
-    klog_print("_getProcessId\n");
-#endif
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
 
     if (exc_state->reg_a1 == 0) {
@@ -283,9 +241,6 @@ static void _getProcessId() {
 }
 
 static void _yield() {
-#ifdef DEBUG
-    klog_print("_yield\n");
-#endif
     // No other processes
     if (list_empty(&ready_queue))
         return;
@@ -304,10 +259,6 @@ static void _yield() {
 
 // syscalls sub-handler
 static void _syscallHandler() {
-#ifdef DEBUG
-    klog_print("_syscallHandler\n");
-#endif
-
     // get privileges
     int mode = GET_EXCEPTION_STATE_PTR(0)->status & MSTATUS_MPP_MASK;
 
@@ -369,9 +320,6 @@ static void _syscallHandler() {
 
 // Temporary function definition in order to compile initial.c
 void uTLB_RefillHandler() {
-#ifdef DEBUG
-    klog_print("uTLB_RefillHandler\n");
-#endif
     int prid = getPRID();
     setENTRYHI(0x80000000);
     setENTRYLO(0x00000000);
@@ -383,9 +331,6 @@ void uTLB_RefillHandler() {
 enum { EXC_SYSCALL = 8, EXC_BREAK = 9, TLB_FIRST = 24, TLB_LAST = 28 };
 
 void exceptionHandler() {
-#ifdef DEBUG
-    klog_print("exceptionHandler\n");
-#endif
     unsigned int cause = getCAUSE();
 
     if (CAUSE_IS_INT(cause)) {
