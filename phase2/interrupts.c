@@ -10,6 +10,9 @@
 #include "../phase1/headers/pcb.h"
 #include "headers/initial.h"
 #include "headers/klog.h"
+#include "headers/scheduler.h"
+#include "headers/shared.h"
+
 static void nonTimerInterrupt(int intlineNo);
 static void localTimerInterrupt();
 static void pseudoClockTick();
@@ -60,24 +63,40 @@ static void nonTimerInterrupt(int intLineNo) {
     }
 
     if (devNo == -1) // No pending interrupt
-        return;
+        _exit();
 
-    dtpreg_t* devAddr = (dtpreg_t*)DEV_REG_ADDR(intLineNo, devNo);
-    cpu_t status = devAddr->status;
-    devAddr->command = ACK; // acknowledge
+    cpu_t final_status = 0;
+    pcb_t* proc = NULL;
 
-    if ((int)devAddr < START_DEVREG)
-        return; // REVIEW: should pass-up-or-die?
+    if (intLineNo == 7) { // 7 = terminal IL
+        termreg_t* termAddr = (termreg_t*)DEV_REG_ADDR(intLineNo, devNo);
+        int base_sem_index = 32 + devNo; // for terminals: +0 output +8 input
 
-    memaddr index = (memaddr)(devAddr - START_DEVREG) / sizeof(devreg_t);
-    pcb_t* proc = removeBlocked((int*)device_semaphores + index); // spec 7.5.4
+        // Transmitter is higher priority than receiver
+        if (termAddr->transm_status == OKCHARTRANS) {
+            final_status = termAddr->transm_status;
+            termAddr->transm_command = ACK;
+            proc = removeBlocked((int*)&device_semaphores[base_sem_index + 8]);
+        } else { // receiver
+            final_status = termAddr->recv_status;
+            termAddr->recv_command = ACK; // Spegniamo la tastiera
+            proc = removeBlocked((int*)&device_semaphores[base_sem_index]);
+        }
+    } else { // Disks, Flash, Printers
+        dtpreg_t* devAddr = (dtpreg_t*)DEV_REG_ADDR(intLineNo, devNo);
+        final_status = devAddr->status;
+        devAddr->command = ACK;
+        int sem_index = (intLineNo - 3) * DEVPERINT + devNo;
+        proc = removeBlocked((int*)&device_semaphores[sem_index]);
+    }
 
-    if (proc == NULL)
-        return;
-    proc->p_s.reg_a0 = status;       // spec 7.5.5
-    insertProcQ(&ready_queue, proc); // spec 7.5.6
-    soft_block_count--;
-    LDST(&proc->p_s); // spec 7.5.7
+    if (proc) {
+        proc->p_s.reg_a0 = final_status; // 7.1.5
+        soft_block_count--;
+        insertProcQ(&ready_queue, proc); // 7.1.6
+    }
+
+    _exit(); // 7.1.7
 }
 
 static void localTimerInterrupt() {
@@ -86,9 +105,11 @@ static void localTimerInterrupt() {
 #endif
     // spec 7.2
     setTIMER(TIMESLICE);
-    STST(&(running_pcb->p_s));
+    state_t* old_state = GET_EXCEPTION_STATE_PTR(0);
+    _copyState(&running_pcb->p_s, old_state);
     insertProcQ(&ready_queue, running_pcb);
-    // FIXME: call scheduler()
+    running_pcb = NULL;
+    scheduler();
 }
 
 static void pseudoClockTick() {
