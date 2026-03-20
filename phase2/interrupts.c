@@ -10,6 +10,9 @@
 #include "../phase1/headers/pcb.h"
 #include "headers/initial.h"
 #include "headers/klog.h"
+static void nonTimerInterrupt(int intlineNo);
+static void localTimerInterrupt();
+static void pseudoClockTick();
 
 void interruptHandler() {
 #ifdef DEBUG
