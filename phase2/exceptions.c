@@ -7,7 +7,9 @@
 #include "headers/exceptions.h"
 #include "headers/initial.h"
 #include "headers/interrupts.h"
+#include "headers/klog.h"
 #include "headers/scheduler.h"
+#include "headers/shared.h"
 
 #include <uriscv/const.h>
 #include <uriscv/liburiscv.h>
@@ -18,17 +20,6 @@
 #define CAUSE_IS_INT(cause) (((cause) & 0x80000000) != 0)
 
 #define CAUSE_CODE(cause) ((cause) & GETEXECCODE)
-
-// Function to copy a cpu state into a process->p_s
-static void copyState(state_t* cpu_state, pcb_PTR process) {
-    process->p_s =
-        (state_t){cpu_state->entry_hi, cpu_state->cause, cpu_state->status,
-                  cpu_state->pc_epc, cpu_state->mie};
-    // NOTE: an array must be copied separately
-    for (int i = 0; i < STATE_GPR_LEN; i++) {
-        process->p_s.gpr[i] = cpu_state->gpr[i];
-    }
-}
 
 // pass up or die sub-handler (spec 8)
 static void _puodHandler(int idx) {
@@ -61,7 +52,7 @@ static void _createProcess() {
     state_t* new_state = (state_t*)exc_state->reg_a1;
     support_t* new_support_struct = (support_t*)exc_state->reg_a3;
 
-    copyState(new_state, new_process);
+    _copyState(new_state, &new_process->p_s);
 
     // If no parameter is provided in a3, allocPCB() initializes to NULL
     if (new_support_struct != 0)
@@ -131,8 +122,8 @@ static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
     // The running process has to wait for the resource
     if (*semAdd < 0) {
         insertBlocked(semAdd, running_pcb);
-
-        copyState(cpu_state, running_pcb);
+        soft_block_count++;
+        _copyState(cpu_state, &running_pcb->p_s);
 
         // The scheduler must know that there's no running process
         // so that it can dispatch a new one properly.
@@ -173,18 +164,19 @@ static void _doIO() {
 
     // Get the index (0-39) of the semaphore associated to the device
     int semaphore_index = (cpu_state->reg_a1 - START_DEVREG) / sizeof(devreg_t);
-    
+
     // The device is a terminal device, and we need to know if
     // it's a command to transmit or receive
     if (semaphore_index >= 32) {
-        termreg_t* terminal_address = (termreg_t*)(START_DEVREG + (semaphore_index * sizeof(devreg_t))); 
-        
+        termreg_t* terminal_address =
+            (termreg_t*)(START_DEVREG + (semaphore_index * sizeof(devreg_t)));
+
         memaddr* commandp = &terminal_address->recv_command;
         memaddr* statusp = &terminal_address->recv_status;
 
         // If the command's address is the transmitter register, we
         // need to use the terminal output semaphore
-        if (commandp != cpu_state->reg_a1) {
+        if (commandp != (unsigned int*)cpu_state->reg_a1) {
             // NOTE: view initial.h interrupt line map
             semaphore_index += 8;
 
@@ -204,7 +196,8 @@ static void _doIO() {
             return;
         }
     } else {
-        dtpreg_t* device_address = (dtpreg_t*) (START_DEVREG + (semaphore_index * sizeof(devreg_t)));
+        dtpreg_t* device_address =
+            (dtpreg_t*)(START_DEVREG + (semaphore_index * sizeof(devreg_t)));
 
         if (device_address->status == READY)
             device_address->command = cpu_state->reg_a2;
@@ -253,7 +246,7 @@ static void _yield() {
         return;
 
     // Save current process state
-    copyState(GET_EXCEPTION_STATE_PTR(0), running_pcb);
+    _copyState(GET_EXCEPTION_STATE_PTR(0), &running_pcb->p_s);
 
     // Add current process at the end of the ready queue
     list_del(&running_pcb->p_list);
@@ -266,7 +259,6 @@ static void _yield() {
 
 // syscalls sub-handler
 static void _syscallHandler() {
-
     // get privileges
     int mode = GET_EXCEPTION_STATE_PTR(0)->status & MSTATUS_MPP_MASK;
 

@@ -5,6 +5,7 @@
 
 #include "headers/exceptions.h"
 #include "headers/initial.h"
+#include "headers/klog.h"
 #include "headers/scheduler.h"
 
 #include <uriscv/types.h>
