@@ -1,5 +1,9 @@
 #include "headers/shared.h"
+#include "../headers/types.h"
 #include "headers/klog.h"
+#include "headers/scheduler.h"
+#include <uriscv/liburiscv.h>
+#include <uriscv/types.h>
 
 void _copyState(state_t* src, state_t* dest) {
 #ifdef DEBUG
@@ -12,4 +16,12 @@ void _copyState(state_t* src, state_t* dest) {
 
     for (int i = 0; i < num_words; i++)
         dest_ptr[i] = src_ptr[i];
+}
+
+inline void _exit() {
+    extern pcb_t* running_pcb;
+    if (running_pcb)
+        LDST(&running_pcb->p_s);
+    else
+        scheduler();
 }
