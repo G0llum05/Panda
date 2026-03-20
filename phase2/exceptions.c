@@ -9,6 +9,7 @@
 #include "headers/interrupts.h"
 #include "headers/klog.h"
 #include "headers/scheduler.h"
+#include "headers/shared.h"
 
 #include <uriscv/const.h>
 #include <uriscv/liburiscv.h>
@@ -19,20 +20,6 @@
 #define CAUSE_IS_INT(cause) (((cause) & 0x80000000) != 0)
 
 #define CAUSE_CODE(cause) ((cause) & GETEXECCODE)
-
-// Function to copy a cpu state into a process->p_s
-static void copyState(state_t* cpu_state, pcb_PTR process) {
-#ifdef DEBUG
-    klog_print("copyState\n");
-#endif
-    process->p_s =
-        (state_t){cpu_state->entry_hi, cpu_state->cause, cpu_state->status,
-                  cpu_state->pc_epc, cpu_state->mie};
-    // NOTE: an array must be copied separately
-    for (int i = 0; i < STATE_GPR_LEN; i++) {
-        process->p_s.gpr[i] = cpu_state->gpr[i];
-    }
-}
 
 // pass up or die sub-handler (spec 8)
 static void _puodHandler(int idx) {
@@ -71,7 +58,7 @@ static void _createProcess() {
     state_t* new_state = (state_t*)exc_state->reg_a1;
     support_t* new_support_struct = (support_t*)exc_state->reg_a3;
 
-    copyState(new_state, new_process);
+    _copyState(new_state, &new_process->p_s);
 
     // If no parameter is provided in a3, allocPCB() initializes to NULL
     if (new_support_struct != 0)
@@ -157,7 +144,7 @@ static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
     if (*semAdd < 0) {
         insertBlocked(semAdd, running_pcb);
         soft_block_count++;
-        copyState(cpu_state, running_pcb);
+        _copyState(cpu_state, &running_pcb->p_s);
 
         // The scheduler must know that there's no running process
         // so that it can dispatch a new one properly.
@@ -304,7 +291,7 @@ static void _yield() {
         return;
 
     // Save current process state
-    copyState(GET_EXCEPTION_STATE_PTR(0), running_pcb);
+    _copyState(GET_EXCEPTION_STATE_PTR(0), &running_pcb->p_s);
 
     // Add current process at the end of the ready queue
     list_del(&running_pcb->p_list);
