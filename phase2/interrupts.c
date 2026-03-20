@@ -99,12 +99,13 @@ static void pseudoClockTick() {
     // spec 7.3.2
     int* key = device_semaphores + 49;
 
-    do {
+    while (headBlocked(key)) {
         pcb_t* proc = removeBlocked(key);
-        soft_block_count--;
-        if (proc)
+        if (proc) {
+            soft_block_count--;
             insertProcQ(&ready_queue, proc);
-    } while (headBlocked(key));
+        }
+    }
 
     // spec 7.3.3
     _exit();
