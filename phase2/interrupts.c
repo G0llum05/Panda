@@ -118,14 +118,15 @@ static void pseudoClockTick() {
 #endif
     LDIT(PSECOND); // Set interval timer spec 7.3.1
     // spec 7.3.2
-    memaddr index = (memaddr)49;
+    int* key = device_semaphores + 49;
+
     do {
-        pcb_t* proc = removeBlocked((int*)device_semaphores + index);
+        pcb_t* proc = removeBlocked(key);
+        soft_block_count--;
         if (proc)
             insertProcQ(&ready_queue, proc);
-    } while (headBlocked((int*)device_semaphores + index));
+    } while (headBlocked(key));
+
     // spec 7.3.3
-    if (running_pcb != NULL) {
-        LDST(&running_pcb->p_s);
-    }
+    _exit();
 }
