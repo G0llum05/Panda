@@ -1,6 +1,7 @@
 #include "headers/interrupts.h"
 
 #include <uriscv/arch.h>
+#include <uriscv/cpu.h>
 #include <uriscv/liburiscv.h>
 #include <uriscv/types.h>
 
@@ -20,10 +21,7 @@ static void localTimerInterrupt();
 static void pseudoClockTick();
 
 void interruptHandler() {
-#ifdef DEBUG
-    klog_print("interruptHandler\n");
-#endif
-    int exccode = getCAUSE() & GETEXECCODE;
+    int exccode = getCAUSE() & CAUSE_EXCCODE_MASK;
     switch (exccode) {
     case IL_TIMER:
         pseudoClockTick();
@@ -31,28 +29,13 @@ void interruptHandler() {
     case IL_CPUTIMER:
         localTimerInterrupt();
         break;
-    case IL_DISK:
-        nonTimerInterrupt(3);
-        break;
-    case IL_FLASH:
-        nonTimerInterrupt(4);
-        break;
-    case IL_ETHERNET:
-        nonTimerInterrupt(5);
-        break;
-    case IL_PRINTER:
-        nonTimerInterrupt(6);
-        break;
-    case IL_TERMINAL:
-        nonTimerInterrupt(7);
+    default:
+        nonTimerInterrupt(exccode);
         break;
     }
 }
 
 static void nonTimerInterrupt(int intLineNo) {
-#ifdef DEBUG
-    klog_print("nonTimerInterrupt\n");
-#endif
     cpu_t devNo = -1;
 
     // decreasing priority: 0x10000040 (l3) .. 0x10000040+0x10 (l7)
@@ -70,7 +53,7 @@ static void nonTimerInterrupt(int intLineNo) {
     cpu_t final_status = 0;
     pcb_t* proc = NULL;
 
-    if (intLineNo == 7) { // 7 = terminal IL
+    if (intLineNo == IL_TERMINAL) { // 7 = terminal IL
         termreg_t* termAddr = (termreg_t*)DEV_REG_ADDR(intLineNo, devNo);
         int base_sem_index = 32 + devNo; // for terminals: +0 output +8 input
 
@@ -102,9 +85,6 @@ static void nonTimerInterrupt(int intLineNo) {
 }
 
 static void localTimerInterrupt() {
-#ifdef DEBUG
-    klog_print("localTimerInterrupt\n");
-#endif
     // spec 7.2
     setTIMER(TIMESLICE);
     state_t* old_state = GET_EXCEPTION_STATE_PTR(0);
@@ -115,9 +95,6 @@ static void localTimerInterrupt() {
 }
 
 static void pseudoClockTick() {
-#ifdef DEBUG
-    klog_print("pseudoClockTick\n");
-#endif
     LDIT(PSECOND); // Set interval timer spec 7.3.1
     // spec 7.3.2
     int* key = device_semaphores + 49;
