@@ -104,7 +104,9 @@ static void _termProcess() {
     }
 
     _termChildren(target_pcb); // this kills target_pcb as well
-    scheduler(); // as requested in spec 6.2
+    
+    if (pid == 0)
+        scheduler();
 }
 
 // pass up or die sub-handler (spec 8)
