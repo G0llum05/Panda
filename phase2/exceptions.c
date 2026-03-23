@@ -79,22 +79,31 @@ static void _termChildren(pcb_PTR node) {
     if (node == NULL)
         return;
 
+    // Kill children of node
     pcb_PTR child;
     list_for_each_entry(child, &node->p_child, p_sib) {
         _termChildren(child);
         freePcb(child);    // Returns void, so no branching
         outBlocked(child); // Returns NULL only when child does not exist
     }
+
+    // Kill node
+    freePcb(node);
+    outBlocked(node);
 }
 
 static void _termProcess() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
     int pid = exc_state->reg_a1;
 
-    pcb_PTR root = _getRoot();
-    pcb_PTR target_pcb = _treeSearch(pid, root);
+    pcb_PTR target_pcb = running_pcb; 
 
-    _termChildren(target_pcb);
+    if (pid != 0) {
+        pcb_PTR root = _getRoot();
+        target_pcb = _treeSearch(pid, root);
+    }
+
+    _termChildren(target_pcb); // this kills target_pcb as well
 }
 
 // pass up or die sub-handler (spec 8)
