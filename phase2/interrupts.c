@@ -90,6 +90,7 @@ static void localTimerInterrupt() {
     state_t* old_state = GET_EXCEPTION_STATE_PTR(0);
     _copyState(&running_pcb->p_s, old_state);
     insertProcQ(&ready_queue, running_pcb);
+    _updateTime(running_pcb);
     running_pcb = NULL;
     scheduler();
 }

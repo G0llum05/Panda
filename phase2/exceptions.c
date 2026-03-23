@@ -125,6 +125,8 @@ static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
         soft_block_count++;
         _copyState(cpu_state, &running_pcb->p_s);
 
+        _updateTime(running_pcb);
+
         // The scheduler must know that there's no running process
         // so that it can dispatch a new one properly.
         running_pcb = NULL;
@@ -250,7 +252,12 @@ static void _yield() {
 
     // Add current process at the end of the ready queue
     list_del(&running_pcb->p_list);
+    // REVIEW: we don't use insertChild() here because of spec 6.10:
+    // "the yielded process is not immediately re-executed even
+    // if it has the highest priority"
     list_add_tail(&running_pcb->p_list, &ready_queue);
+
+    _updateTime(running_pcb);
 
     // Call a ready process
     running_pcb = NULL;
