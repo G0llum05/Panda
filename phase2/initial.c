@@ -47,7 +47,7 @@ int main() {
     // allocPCB() inizializza tutto a zero/NULL
     pcb_PTR first_proc = allocPcb();
     process_count++;
-    list_add_tail(&first_proc->p_list, &ready_queue);
+    insertProcQ(&ready_queue, first_proc);
     first_proc->p_s.mie = MIE_ALL;
     first_proc->p_s.status = MSTATUS_MPIE_MASK | MSTATUS_MPP_M;
     first_proc->p_s.pc_epc = (memaddr)test;

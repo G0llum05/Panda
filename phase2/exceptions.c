@@ -58,7 +58,7 @@ static void _createProcess() {
     if (new_support_struct != 0)
         new_process->p_supportStruct = new_support_struct;
 
-    insertProcQ(&running_pcb->p_list, new_process);
+    insertProcQ(&ready_queue, new_process);
     insertChild(running_pcb, new_process);
 
     // p_pid is initialized to static next_pid in allocPCB()
