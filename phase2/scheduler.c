@@ -1,5 +1,6 @@
 #include "headers/scheduler.h"
 
+#include "uriscv/const.h"
 #include "uriscv/liburiscv.h"
 #include <uriscv/types.h>
 
@@ -9,9 +10,12 @@
 #include "headers/initial.h"
 #include "headers/klog.h"
 
+cpu_t start_time;
+
 void scheduler() {
     if (!emptyProcQ(&ready_queue)) {
         running_pcb = removeProcQ(&ready_queue);
+        STCK(start_time);
         setTIMER(TIMESLICE);
         LDST(&running_pcb->p_s);
 

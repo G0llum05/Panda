@@ -2,6 +2,7 @@
 #include "../headers/types.h"
 #include "headers/klog.h"
 #include "headers/scheduler.h"
+#include "uriscv/const.h"
 #include <uriscv/liburiscv.h>
 #include <uriscv/types.h>
 
@@ -21,4 +22,10 @@ inline void _exit() {
         LDST(&running_pcb->p_s);
     else
         scheduler();
+}
+
+void _updateTime(pcb_PTR p) {
+    cpu_t current_time;
+    STCK(current_time);
+    p->p_time += current_time - start_time;
 }
