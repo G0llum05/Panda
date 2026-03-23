@@ -21,25 +21,6 @@
 
 #define CAUSE_CODE(cause) ((cause) & GETEXECCODE)
 
-// pass up or die sub-handler (spec 8)
-static void _puodHandler(int idx) {
-    support_t* support = running_pcb->p_supportStruct;
-    if (!support) {
-        // TODO: DIE!
-    }
-    // else pass up
-    state_t* state = (state_t*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
-    support->sup_exceptState[idx] =
-        (state_t){state->entry_hi, state->cause, state->status, state->pc_epc,
-                  state->mie};
-    for (int i = 0; i < STATE_GPR_LEN; i++) {
-        support->sup_exceptState[idx].gpr[i] = state->gpr[i];
-    }
-
-    context_t* context = support->sup_exceptContext;
-    LDCXT(context->stackPtr, context->status, context->pc);
-}
-
 static void _createProcess() {
     pcb_PTR new_process = allocPcb();
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
@@ -72,7 +53,7 @@ static void _createProcess() {
 // Returns a pointer to the root of all processes
 static pcb_PTR _getRoot() {
     pcb_PTR temp = running_pcb;
-    while (temp != NULL) {
+    while (temp->p_parent != NULL) {
         temp = temp->p_parent;
     }
     return temp;
@@ -114,6 +95,25 @@ static void _termProcess() {
     pcb_PTR target_pcb = _treeSearch(pid, root);
 
     _termChildren(target_pcb);
+}
+
+// pass up or die sub-handler (spec 8)
+static void _puodHandler(int idx) {
+    support_t* support = running_pcb->p_supportStruct;
+    if (!support) {
+        // TODO: DIE!
+    }
+    // else pass up
+    state_t* state = (state_t*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
+    support->sup_exceptState[idx] =
+        (state_t){state->entry_hi, state->cause, state->status, state->pc_epc,
+                  state->mie};
+    for (int i = 0; i < STATE_GPR_LEN; i++) {
+        support->sup_exceptState[idx].gpr[i] = state->gpr[i];
+    }
+
+    context_t* context = support->sup_exceptContext;
+    LDCXT(context->stackPtr, context->status, context->pc);
 }
 
 static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
