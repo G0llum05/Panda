@@ -325,15 +325,6 @@ static void _syscallHandler() {
     _puodHandler(GENERALEXCEPT); // spec 8.{1,2}
 }
 
-// Temporary function definition in order to compile initial.c
-void uTLB_RefillHandler() {
-    int prid = getPRID();
-    setENTRYHI(0x80000000);
-    setENTRYLO(0x00000000);
-    TLBWR();
-    LDST((state_t*)BIOSDATAPAGE);
-}
-
 // Handles all exceptions, exclusive of TLB-Refill events.
 enum { EXC_SYSCALL = 8, EXC_BREAK = 9, TLB_FIRST = 24, TLB_LAST = 28 };
 
