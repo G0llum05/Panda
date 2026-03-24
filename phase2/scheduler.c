@@ -10,6 +10,7 @@
 #include "headers/initial.h"
 #include "headers/klog.h"
 
+// start time since runnin_pcb re-started computing
 cpu_t start_time;
 
 void scheduler() {

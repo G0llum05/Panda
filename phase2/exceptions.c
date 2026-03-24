@@ -96,7 +96,7 @@ static void _termProcess() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
     int pid = exc_state->reg_a1;
 
-    pcb_PTR target_pcb = running_pcb; 
+    pcb_PTR target_pcb = running_pcb;
 
     if (pid != 0) {
         pcb_PTR root = _getRoot();
@@ -104,7 +104,7 @@ static void _termProcess() {
     }
 
     _termChildren(target_pcb); // this kills target_pcb as well
-    
+
     if (pid == 0)
         scheduler();
 }
@@ -230,6 +230,23 @@ static void _doIO() {
 };
 
 static void _getCPUTime() {
+    // NOTE: If we don't update time we get the cumulative time it has run minus
+    // the time it has just run.
+    // |-5s-| ... |-3s-| ... |- X ->
+    // X := current time;
+    // p_time = 5s + 3s; // Nb. Not updated!
+    _updateTime(running_pcb);
+    // Now we need to reset the start time
+    // why? Otherwise on the next _updateTime it will be like this:
+    // p_time = 5s + 3s + 2s <- because of out last _updateTime
+    // |-5s-| ... |-3s-| ... |- 8s -|X->
+    // p_time = 5s + 3s + 2s + 8s // we count those 2s twice!!
+    //
+    // Everytime we _getCPUTIME we make a adjacent segment in the proc time
+    // |-5s-| ... |-3s-| ... |-2s-||-6s-|X->
+    //                            ^ update here
+    // p_time = 5s+3s+2s+6s; // ok!
+    STCK(start_time);
     GET_EXCEPTION_STATE_PTR(0)->reg_a0 = running_pcb->p_time;
 }
 
