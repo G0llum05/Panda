@@ -15,8 +15,8 @@ extern void test();
    Line 4 (Flash/Tape)   = indices 8-15
    Line 5 (Network)      = indices 16-23
    Line 6 (Printer)      = indices 24-31
-   Line 7 (Term Input)   = indices 32-39
-   Line 7 (Term Output)  = indices 40-47
+   Line 7 (Term Output)  = indices 32-39
+   Line 7 (Term Input)   = indices 40-47
 */
 extern int device_semaphores[SEMDEVLEN];
 extern int pseudo_clock_semaphore;

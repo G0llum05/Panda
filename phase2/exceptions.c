@@ -194,22 +194,23 @@ static void _doIO() {
         termreg_t* terminal_address =
             (termreg_t*)(START_DEVREG + (semaphore_index * sizeof(devreg_t)));
 
-        memaddr* commandp = &terminal_address->recv_command;
-        memaddr* statusp = &terminal_address->recv_status;
+        memaddr* statusp = &terminal_address->transm_status;
+        memaddr* commandp = &terminal_address->transm_command;
 
-        // If the command's address is the transmitter register, we
-        // need to use the terminal output semaphore
+        // If the command's address is the receiver register, we
+        // need to use the terminal input semaphore
         if (commandp != (unsigned int*)cpu_state->reg_a1) {
-            // NOTE: view initial.h interrupt line map
+            // NOTE: view initial.h interrupt lines map
             semaphore_index += 8;
 
-            statusp = &terminal_address->transm_status;
-            commandp = &terminal_address->transm_command;
+            commandp = &terminal_address->recv_command;
+            statusp = &terminal_address->recv_status;
         }
 
         // We need to tell the terminal the command stored in reg_a2
-        if (*statusp == READY || *statusp == 5)
+        if (*statusp == READY || *statusp == CHARRECV) {
             *commandp = cpu_state->reg_a2;
+        }
         // REVIEW:
         // 1. If terminal is not ready we shouldn't wait.
         //    Access should be regulated via a mutex, not busy waiting.
@@ -227,9 +228,9 @@ static void _doIO() {
         dtpreg_t* device_address =
             (dtpreg_t*)(START_DEVREG + (semaphore_index * sizeof(devreg_t)));
 
-        if (device_address->status == READY)
+        if (device_address->status == READY) {
             device_address->command = cpu_state->reg_a2;
-        else {
+        } else {
             cpu_state->reg_a0 = device_address->status;
             return;
         }

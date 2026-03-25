@@ -53,7 +53,7 @@ static void nonTimerInterrupt(int intLineNo) {
     cpu_t final_status = 0;
     pcb_t* proc = NULL;
 
-    if (intLineNo == IL_TERMINAL) { // 7 = terminal IL
+    if (intLineNo == IL_TERMINAL) {
         termreg_t* termAddr = (termreg_t*)DEV_REG_ADDR(intLineNo, devNo);
         int base_sem_index = 32 + devNo; // for terminals: +0 output +8 input
 
@@ -61,11 +61,11 @@ static void nonTimerInterrupt(int intLineNo) {
         if ((termAddr->transm_status & TERMSTATMASK) == OKCHARTRANS) {
             final_status = termAddr->transm_status;
             termAddr->transm_command = ACK;
-            proc = removeBlocked((int*)&device_semaphores[base_sem_index + 8]);
+            proc = removeBlocked((int*)&device_semaphores[base_sem_index]);
         } else { // receiver
             final_status = termAddr->recv_status;
             termAddr->recv_command = ACK; // Spegniamo la tastiera
-            proc = removeBlocked((int*)&device_semaphores[base_sem_index]);
+            proc = removeBlocked((int*)&device_semaphores[base_sem_index + 8]);
         }
     } else { // Disks, Flash, Printers
         dtpreg_t* devAddr = (dtpreg_t*)DEV_REG_ADDR(intLineNo, devNo);
