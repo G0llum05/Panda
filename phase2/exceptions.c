@@ -354,12 +354,8 @@ static void _syscallHandler() {
             // restore prev state
             LDST(GET_EXCEPTION_STATE_PTR(0));
         }
-    } else if (status >= 24 && status <= 28) // TLB exception
-        _puodHandler(PGFAULTEXCEPT);         // spec 8.3
-    // non existent syscall requested, send a trap
-    setCAUSE(PRIVINSTR);         // REVIEW: cause, privinstr is not correct
-                                 // TODO: should we setCause something?
-    _puodHandler(GENERALEXCEPT); // spec 8.{1,2}
+    }
+    _puodHandler(GENERALEXCEPT);
 }
 
 // Handles all exceptions, exclusive of TLB-Refill events.
