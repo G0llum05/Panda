@@ -100,7 +100,7 @@ static void _termProcess() {
         target_pcb = _treeSearch(pid, root);
     }
 
-    _termChildren(target_pcb); // this kills target_pcb as well
+    _termChildren(target_pcb);
 
     // Kill node
     freePcb(target_pcb);
@@ -131,10 +131,10 @@ static void _puodHandler(int idx) {
 }
 
 static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
-    *semAdd = *semAdd - 1;
-
     // The running process has to wait for the resource
-    if (*semAdd < 0) {
+    if (*semAdd > 0) {
+        *semAdd = *semAdd - 1;
+    } else {
         insertBlocked(semAdd, running_pcb);
         soft_block_count++;
         _copyState(cpu_state, &running_pcb->p_s);
@@ -152,8 +152,7 @@ static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
 
 /*  NOTE:
     Positive semaphore values mean available resources.
-    Negative semaphore values mean waiting processes.
-    Semaphore value set to zero means no waiting/available.
+    Semaphore value set to zero means waiting processes or no available resources.
 */
 static void _passeren() {
     state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
@@ -165,13 +164,13 @@ static void _passeren() {
 static void _verhogen() {
     memaddr* semAdd = (memaddr*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
 
-    *semAdd = *semAdd + 1;
+    // If there are blocked processes, unblock one
+    pcb_t* removed_pcb = removeBlocked((int*)semAdd);
 
-    // If there were blocked processes, unblock one
-    if (*semAdd <= 0) {
-        pcb_t* removed_pcb = removeBlocked((int*)semAdd);
-        if (removed_pcb != NULL)
-            insertProcQ(&ready_queue, removed_pcb);
+    if (removed_pcb != NULL) {
+        insertProcQ(&ready_queue, removed_pcb);
+    } else {
+        *semAdd = *semAdd + 1;
     }
 }
 
