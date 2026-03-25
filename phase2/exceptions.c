@@ -84,8 +84,13 @@ static void _termChildren(pcb_PTR node) {
     pcb_PTR child;
     list_for_each_entry(child, &node->p_child, p_sib) {
         _termChildren(child);
-        freePcb(child);    // Returns void, so no branching
-        outBlocked(child); // Returns NULL only when child does not exist
+        freePcb(child); // Returns void, so no branching
+        if (outBlocked(child))
+            soft_block_count--;
+        else {
+            outProcQ(&ready_queue, child);
+        }
+        process_count--;
     }
 }
 
@@ -104,7 +109,9 @@ static void _termProcess() {
 
     // Kill node
     freePcb(target_pcb);
-    outBlocked(target_pcb);
+    if (outBlocked(target_pcb))
+        soft_block_count--;
+    process_count--;
 
     if (pid == 0)
         scheduler();
