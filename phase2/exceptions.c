@@ -73,12 +73,13 @@ static pcb_PTR _treeSearch(int pid, pcb_PTR node) {
 
     return NULL;
 }
-
 // Function that terminates a process and all its children recursively
 static void _termChildren(pcb_PTR node) {
     if (node == NULL)
         return;
 
+    if (emptyChild(node))
+        return;
     // Kill children of node
     pcb_PTR child;
     list_for_each_entry(child, &node->p_child, p_sib) {
@@ -86,10 +87,6 @@ static void _termChildren(pcb_PTR node) {
         freePcb(child);    // Returns void, so no branching
         outBlocked(child); // Returns NULL only when child does not exist
     }
-
-    // Kill node
-    freePcb(node);
-    outBlocked(node);
 }
 
 static void _termProcess() {
@@ -105,6 +102,10 @@ static void _termProcess() {
 
     _termChildren(target_pcb); // this kills target_pcb as well
 
+    // Kill node
+    freePcb(target_pcb);
+    outBlocked(target_pcb);
+
     if (pid == 0)
         scheduler();
 }
@@ -113,7 +114,8 @@ static void _termProcess() {
 static void _puodHandler(int idx) {
     support_t* support = running_pcb->p_supportStruct;
     if (!support) {
-        // TODO: DIE!
+        _termProcess();
+        scheduler();
     }
     // else pass up
     state_t* state = (state_t*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
