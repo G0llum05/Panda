@@ -159,7 +159,8 @@ static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
 
 /*  NOTE:
     Positive semaphore values mean available resources.
-    Semaphore value set to zero means waiting processes or no available resources.
+    Semaphore value set to zero means waiting processes or no available
+    resources.
 */
 static void _passeren() {
     state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
@@ -209,10 +210,15 @@ static void _doIO() {
         // We need to tell the terminal the command stored in reg_a2
         if (*statusp == READY || *statusp == 5)
             *commandp = cpu_state->reg_a2;
-        // REVIEW: If terminal is not ready we shouldn't wait.
-        // Access should be regulated via a mutex, not busy waiting.
-        // See print in p2test.c
-        // REVIEW: In case of error we return the status word != ready
+        // REVIEW:
+        // 1. If terminal is not ready we shouldn't wait.
+        //    Access should be regulated via a mutex, not busy waiting.
+        //    See print in p2test.c
+        // 2. In case of error we return the status word != ready
+        // 3. Spec 6.5 "For character transmission and receipt, the status
+        //    word, in addition to containing a device completion code, will
+        //    also contain the character transmitted or received" ?
+        //
         else {
             cpu_state->reg_a0 = *statusp;
             return;
@@ -289,7 +295,7 @@ static void _yield() {
 
     // Add current process at the end of the ready queue
     list_del(&running_pcb->p_list);
-    // REVIEW: we don't use insertChild() here because of spec 6.10:
+    // NOTE: we don't use insertChild() here because of spec 6.10:
     // "the yielded process is not immediately re-executed even
     // if it has the highest priority"
     list_add_tail(&running_pcb->p_list, &ready_queue);
