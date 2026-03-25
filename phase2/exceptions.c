@@ -301,64 +301,60 @@ static void _yield() {
     scheduler();
 }
 
-// syscalls sub-handler
 static void _syscallHandler() {
-    // get privileges
-    int mode = GET_EXCEPTION_STATE_PTR(0)->status & MSTATUS_MPP_MASK;
+    state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
+    // Store the Machine Previous Privilege mode
+    int mode = exc_state->status & MSTATUS_MPP_MASK;
 
-    // privileged syscall requested
-    const int status = GET_EXCEPTION_STATE_PTR(0)->reg_a0;
-    if (status < 0) {
-        if (mode != MSTATUS_MPP_MASK) { // review needed
-            // send a trap
-            setCAUSE(PRIVINSTR);
-            _puodHandler(GENERALEXCEPT);
-        } else {
+    const int syscall_code = exc_state->reg_a0;
 
-            // increase PC value to avoid infinite syscall loops
-            GET_EXCEPTION_STATE_PTR(0)->pc_epc += 4;
+    // If it is a privileged syscall, was the previous state the Machine mode?
+    if (syscall_code < 0 && mode == MSTATUS_MPP_M) {
+        // Increase PC value and go to next instruction
+        exc_state->pc_epc += 4;
 
-            switch (status) {
-            case (CREATEPROCESS):
-                _createProcess();
-                break;
-            case (TERMPROCESS):
-                _termProcess();
-                break;
-            case (PASSEREN):
-                _passeren();
-                break;
-            case (VERHOGEN):
-                _verhogen();
-                break;
-            case (DOIO):
-                _doIO();
-                break;
-            case (GETTIME):
-                _getCPUTime();
-                break;
-            case (CLOCKWAIT):
-                _clockWait();
-                break;
-            case (GETSUPPORTPTR):
-                _getSupportPtr();
-                break;
-            case (GETPROCESSID):
-                _getProcessId();
-                break;
-            case (YIELD):
-                _yield();
-                break;
-            }
-
-            // restore prev state
-            LDST(GET_EXCEPTION_STATE_PTR(0));
+        switch (syscall_code) {
+        case (CREATEPROCESS):
+            _createProcess();
+            break;
+        case (TERMPROCESS):
+            _termProcess();
+            break;
+        case (PASSEREN):
+            _passeren();
+            break;
+        case (VERHOGEN):
+            _verhogen();
+            break;
+        case (DOIO):
+            _doIO();
+            break;
+        case (GETTIME):
+            _getCPUTime();
+            break;
+        case (CLOCKWAIT):
+            _clockWait();
+            break;
+        case (GETSUPPORTPTR):
+            _getSupportPtr();
+            break;
+        case (GETPROCESSID):
+            _getProcessId();
+            break;
+        case (YIELD):
+            _yield();
+            break;
         }
+
+        // Restore previous state
+        LDST(exc_state);
     }
+
+    // It is not a nucleus syscall, so we pass up its handling
     _puodHandler(GENERALEXCEPT);
 }
 
-// Handles all exceptions, exclusive of TLB-Refill events.
+// Handles all exceptions, exclusive of TLB-Refill events
 enum { EXC_SYSCALL_1 = 8, EXC_SYSCALL_2 = 11, TLB_FIRST = 24, TLB_LAST = 28 };
 
 void exceptionHandler() {
