@@ -356,7 +356,7 @@ static void _syscallHandler() {
 }
 
 // Handles all exceptions, exclusive of TLB-Refill events.
-enum { EXC_SYSCALL = 8, EXC_BREAK = 9, TLB_FIRST = 24, TLB_LAST = 28 };
+enum { EXC_SYSCALL_1 = 8, EXC_SYSCALL_2 = 11, TLB_FIRST = 24, TLB_LAST = 28 };
 
 void exceptionHandler() {
     unsigned int cause = getCAUSE();
@@ -367,8 +367,8 @@ void exceptionHandler() {
     }
 
     switch (CAUSE_CODE(cause)) {
-    case EXC_SYSCALL:
-    case EXC_BREAK:
+    case EXC_SYSCALL_1:
+    case EXC_SYSCALL_2:
         _syscallHandler();
         break;
 
