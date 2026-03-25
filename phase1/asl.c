@@ -97,6 +97,7 @@ pcb_t* removeBlocked(int* semAdd) {
     if (emptyProcQ(&semaphore->s_procq)) {
         deactivateSemd(semaphore);
     }
+    removedPCB->p_semAdd = NULL;
     return removedPCB;
 }
 
@@ -118,6 +119,7 @@ pcb_t* outBlocked(pcb_t* p) {
             if (emptyProcQ(&semaphore->s_procq)) {
                 deactivateSemd(semaphore);
             }
+            pcb_node->p_semAdd = NULL;
             return pcb_node;
         }
     }
