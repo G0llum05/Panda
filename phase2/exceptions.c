@@ -136,7 +136,6 @@ static void _kernelTermProcess() {
 
 // pass up or die sub-handler (spec 8)
 static void _puodHandler(int idx) {
-    klog_print("PUODIO\n");
     support_t* support = running_pcb->p_supportStruct;
     if (!support) {
         _kernelTermProcess();
@@ -307,16 +306,8 @@ static void _getProcessId() {
 static void _yield() {
     // No other processes
     if (list_empty(&ready_queue)) {
-        klog_print("No other processes in ready queue, yield is a no-op\n");
         return;
     }
-
-    // Save current process state
-
-    state_t* state = GET_EXCEPTION_STATE_PTR(0);
-    klog_print("PROGRAM COUNTER INSIDE YIELD: ");
-    klog_print_hex(state->pc_epc);
-    klog_print("\n");
 
     _copyState(GET_EXCEPTION_STATE_PTR(0), &running_pcb->p_s);
 
@@ -338,12 +329,12 @@ static void _syscallHandler() {
     int mode = exc_state->status & MSTATUS_MPP_MASK;
 
     const int syscall_code = exc_state->reg_a0;
-
+    
+    // Increase PC value and go to next instruction
+    exc_state->pc_epc += 4;
+    
     // If it is a privileged syscall, was the previous state the Machine mode?
-    if (syscall_code < 0 && mode == MSTATUS_MPP_M) {
-        // Increase PC value and go to next instruction
-        exc_state->pc_epc += 4;
-
+    if (syscall_code < 0 && (mode == MSTATUS_MPP_M)) {
         switch (syscall_code) {
         case (CREATEPROCESS):
             _createProcess();
@@ -382,7 +373,6 @@ static void _syscallHandler() {
     }
 
     // It is not a nucleus syscall, so we pass up its handling
-    klog_print("GENERAL EXCEPTION: non-nucleus syscall\n");
     _puodHandler(GENERALEXCEPT);
 }
 
@@ -404,12 +394,10 @@ void exceptionHandler() {
         break;
 
     case TLB_FIRST ... TLB_LAST:
-        klog_print("TLB EXCEPTION\n");
         _puodHandler(PGFAULTEXCEPT);
         break;
 
     default:
-        klog_print("GENERAL EXCEPTION\n");
         _puodHandler(GENERALEXCEPT);
         break;
     }

@@ -6,14 +6,19 @@
 #include <uriscv/liburiscv.h>
 #include <uriscv/types.h>
 
-void _copyState(state_t* src, state_t* dest) {
-    // Consider a struct as an array of u_int
-    unsigned int* dest_ptr = (unsigned int*)dest;
-    unsigned int* src_ptr = (unsigned int*)src;
-    unsigned int num_words = sizeof(state_t) / sizeof(unsigned int);
+void* memcpy(void* dest, const void* src, unsigned int n) {
+    unsigned char* d = (unsigned char*)dest;
+    const unsigned char* s = (const unsigned char*)src;
+    while (n--) {
+        *d++ = *s++;
+    }
+    return dest;
+}
 
-    for (int i = 0; i < num_words; i++)
-        dest_ptr[i] = src_ptr[i];
+void _copyState(state_t* src, state_t* dest) {
+    if (src != NULL && dest != NULL) {
+        *dest = *src;
+    }
 }
 
 inline void _exit() {
