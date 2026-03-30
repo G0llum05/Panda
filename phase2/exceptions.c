@@ -113,15 +113,33 @@ static void _termProcess() {
         soft_block_count--;
     process_count--;
 
-    if (pid == 0)
-        scheduler();
+    // if (pid == 0)
+    //     scheduler();
+    scheduler();
+}
+
+static void _kernelTermProcess() {
+
+    pcb_PTR root = _getRoot();
+    pcb_PTR target_pcb = _treeSearch(running_pcb->p_pid, root);
+
+    _termChildren(target_pcb);
+
+    // Kill node
+    freePcb(target_pcb);
+    if (outBlocked(target_pcb))
+        soft_block_count--;
+    process_count--;
+
+    // NOTE: we don't need to call scheduler() here because we do it outside
 }
 
 // pass up or die sub-handler (spec 8)
 static void _puodHandler(int idx) {
+    klog_print("PUODIO\n");
     support_t* support = running_pcb->p_supportStruct;
     if (!support) {
-        _termProcess();
+        _kernelTermProcess();
         scheduler();
     }
     // else pass up
@@ -288,14 +306,20 @@ static void _getProcessId() {
 
 static void _yield() {
     // No other processes
-    if (list_empty(&ready_queue))
+    if (list_empty(&ready_queue)) {
+        klog_print("No other processes in ready queue, yield is a no-op\n");
         return;
+    }
 
     // Save current process state
+
+    state_t* state = GET_EXCEPTION_STATE_PTR(0);
+    klog_print("PROGRAM COUNTER INSIDE YIELD: ");
+    klog_print_hex(state->pc_epc);
+    klog_print("\n");
+
     _copyState(GET_EXCEPTION_STATE_PTR(0), &running_pcb->p_s);
 
-    // Add current process at the end of the ready queue
-    list_del(&running_pcb->p_list);
     // NOTE: we don't use insertChild() here because of spec 6.10:
     // "the yielded process is not immediately re-executed even
     // if it has the highest priority"
@@ -358,6 +382,7 @@ static void _syscallHandler() {
     }
 
     // It is not a nucleus syscall, so we pass up its handling
+    klog_print("GENERAL EXCEPTION: non-nucleus syscall\n");
     _puodHandler(GENERALEXCEPT);
 }
 
@@ -379,10 +404,12 @@ void exceptionHandler() {
         break;
 
     case TLB_FIRST ... TLB_LAST:
+        klog_print("TLB EXCEPTION\n");
         _puodHandler(PGFAULTEXCEPT);
         break;
 
     default:
+        klog_print("GENERAL EXCEPTION\n");
         _puodHandler(GENERALEXCEPT);
         break;
     }
