@@ -101,12 +101,7 @@ pcb_t* outProcQ(struct list_head* head, pcb_t* p) {
     return NULL;
 }
 
-int emptyChild(pcb_t* p) {
-    // pcb_t* next_child = container_of(p->p_child.next, pcb_t, p_child);
-    // return next_child->p_parent != p; // Not out child, list circled,
-    // emptyChild
-    return list_empty(&p->p_child);
-}
+int emptyChild(pcb_t* p) { return list_empty(&p->p_child); }
 
 void insertChild(pcb_t* prnt, pcb_t* p) {
     if (emptyChild(prnt)) {
