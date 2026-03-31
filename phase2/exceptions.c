@@ -97,51 +97,31 @@ static void _termChildren(pcb_PTR node) {
     }
 }
 
+// kill proc
+static void _term(pcb_t* proc) {
+    _termChildren(proc);
+
+    // Kill node
+    freePcb(proc);
+    if (outBlocked(proc))
+        soft_block_count--;
+    process_count--;
+}
+
 static void _termProcess() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
     int pid = exc_state->reg_a1;
 
-    pcb_PTR target_pcb = running_pcb;
-
-    if (pid != 0) {
-        pcb_PTR root = _getRoot();
-        target_pcb = _treeSearch(pid, root);
-    }
-
-    _termChildren(target_pcb);
-
-    // Kill node
-    freePcb(target_pcb);
-    if (outBlocked(target_pcb))
-        soft_block_count--;
-    process_count--;
-
-    // if (pid == 0)
-    //     scheduler();
+    pcb_PTR target_pcb = pid == 0 ? running_pcb : _treeSearch(pid, _getRoot());
+    _term(target_pcb);
     scheduler();
-}
-
-static void _kernelTermProcess() {
-
-    pcb_PTR root = _getRoot();
-    pcb_PTR target_pcb = _treeSearch(running_pcb->p_pid, root);
-
-    _termChildren(target_pcb);
-
-    // Kill node
-    freePcb(target_pcb);
-    if (outBlocked(target_pcb))
-        soft_block_count--;
-    process_count--;
-
-    // NOTE: we don't need to call scheduler() here because we do it outside
 }
 
 // pass up or die sub-handler (spec 8)
 static void _puodHandler(int idx) {
     support_t* support = running_pcb->p_supportStruct;
     if (!support) {
-        _kernelTermProcess();
+        _term(running_pcb);
         scheduler();
     }
     // else pass up
