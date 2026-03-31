@@ -88,7 +88,7 @@ static void localTimerInterrupt() {
     // spec 7.2
     setTIMER(TIMESLICE);
     state_t* old_state = GET_EXCEPTION_STATE_PTR(0);
-    _copyState(&running_pcb->p_s, old_state);
+    _copyState(old_state, &running_pcb->p_s);
     insertProcQ(&ready_queue, running_pcb);
     _updateTime(running_pcb);
     running_pcb = NULL;
