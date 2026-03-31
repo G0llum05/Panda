@@ -102,49 +102,69 @@ pcb_t* outProcQ(struct list_head* head, pcb_t* p) {
 }
 
 int emptyChild(pcb_t* p) {
-    pcb_t* next_child = container_of(p->p_child.next, pcb_t, p_child);
-    return next_child->p_parent != p; // Not out child, list circled, emptyChild
+    // pcb_t* next_child = container_of(p->p_child.next, pcb_t, p_child);
+    // return next_child->p_parent != p; // Not out child, list circled,
+    // emptyChild
+    return list_empty(&p->p_child);
 }
 
 void insertChild(pcb_t* prnt, pcb_t* p) {
     if (emptyChild(prnt)) {
-        list_add_tail(&p->p_child, &prnt->p_child);
+        prnt->p_child.prev = &p->p_child;
+        prnt->p_child.next = &p->p_child;
+        p->p_sib.prev = &prnt->p_sib;
+        p->p_sib.next = &prnt->p_sib;
     } else {
-        struct list_head* node = prnt->p_child.next;
-        pcb_t* child = container_of(node, pcb_t, p_child);
-        list_add_tail(&p->p_sib, &child->p_sib);
+        struct list_head* last_sib_ptr = prnt->p_child.prev;
+        pcb_t* last_sib = container_of(last_sib_ptr, pcb_t, p_child);
+        last_sib->p_sib.next = &p->p_sib;
+        p->p_sib.prev = &last_sib->p_sib;
+        p->p_sib.next = &prnt->p_sib;
+        prnt->p_child.prev = &p->p_child;
     }
     p->p_parent = prnt;
-    /* list_add_tail(&p->p_child, &prnt->p_child); */
-    /* p->p_parent = prnt; */
 }
 
 pcb_t* removeChild(pcb_t* p) {
     if (emptyChild(p))
         return NULL;
 
-    struct list_head* cnode = p->p_child.next; // to be deleted
-    pcb_t* child_pcb = container_of(cnode, pcb_t, p_child);
-    struct list_head* snode = child_pcb->p_sib.next;
-    pcb_t* sibling_pcb = container_of(snode, pcb_t, p_sib);
+    pcb_t* first_child_pcb = container_of(p->p_child.next, pcb_t, p_child);
+    // this work only because list is not empty
+    if (p->p_child.next == p->p_child.prev) {
+        // only one child
+        INIT_LIST_HEAD(&p->p_child);
+    } else {
+        pcb_t* second_child_pcb =
+            container_of(first_child_pcb->p_sib.next, pcb_t, p_sib);
+        p->p_child.next = &second_child_pcb->p_child;
+        second_child_pcb->p_sib.prev = &p->p_sib;
+    }
 
-    // detach child
-    child_pcb->p_parent = NULL;
-    p->p_child.next = &sibling_pcb->p_child;
-
-    list_del(&child_pcb->p_sib); // remove it from siblings
-    return child_pcb;
+    first_child_pcb->p_parent = NULL;
+    INIT_LIST_HEAD(&first_child_pcb->p_sib);
+    return first_child_pcb;
 }
 
 pcb_t* outChild(pcb_t* p) {
     if (p->p_parent == NULL)
         return NULL;
+    if (emptyChild(p->p_parent))
+        return NULL;
     if (p->p_parent->p_child.next == &p->p_child) {
-        // first child
+        // p is the first child
         return removeChild(p->p_parent);
-    } else {
-        list_del(&p->p_sib);
+    }
+    if (p->p_parent->p_child.prev == &p->p_child) {
+        // p is the last child
+        p->p_parent->p_child.prev = p->p_sib.prev;
+        pcb_t* prev_sib = container_of(p->p_sib.prev, pcb_t, p_sib);
+        prev_sib->p_sib.next = &p->p_parent->p_sib;
         p->p_parent = NULL;
+        INIT_LIST_HEAD(&p->p_sib);
         return p;
     }
+    p->p_parent = NULL;
+    list_del(&p->p_sib);
+    return p;
 }

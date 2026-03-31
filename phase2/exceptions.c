@@ -7,13 +7,16 @@
 #include "headers/exceptions.h"
 #include "headers/initial.h"
 #include "headers/interrupts.h"
-#include "headers/klog.h"
 #include "headers/scheduler.h"
 #include "headers/shared.h"
 
 #include <uriscv/const.h>
 #include <uriscv/liburiscv.h>
 #include <uriscv/types.h>
+
+void klog_print(char* str);
+void klog_print_hex(unsigned int num);
+void klog_print_dec(unsigned int num);
 
 // Macro to determine if an exception is an interrupt or not.
 // Works by checking the MSB of the passed register
@@ -39,14 +42,14 @@ static void _createProcess() {
     if (new_support_struct != 0)
         new_process->p_supportStruct = new_support_struct;
 
+    new_process->p_prio = exc_state->reg_a2;
+
     insertProcQ(&ready_queue, new_process);
     insertChild(running_pcb, new_process);
 
     // p_pid is initialized to static next_pid in allocPCB()
     // p_time, p_semAdd are initialized to zero in allocPCB()
-    new_process->p_prio = exc_state->reg_a2;
     process_count++;
-
     exc_state->reg_a0 = new_process->p_pid;
 }
 
@@ -292,6 +295,11 @@ static void _getSupportPtr() {
 
 static void _getProcessId() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
+    klog_print("PARENT PID \n");
+    klog_print_hex(running_pcb->p_parent ? running_pcb->p_parent->p_pid : 0);
+    klog_print("\n PARENT \n");
+    klog_print_hex((memaddr)running_pcb->p_parent);
+    klog_print("\n");
 
     if (exc_state->reg_a1 == 0) {
         exc_state->reg_a0 = running_pcb->p_pid;
@@ -329,14 +337,15 @@ static void _syscallHandler() {
     int mode = exc_state->status & MSTATUS_MPP_MASK;
 
     const int syscall_code = exc_state->reg_a0;
-    
+
     // Increase PC value and go to next instruction
     exc_state->pc_epc += 4;
-    
+
     // If it is a privileged syscall, was the previous state the Machine mode?
     if (syscall_code < 0 && (mode == MSTATUS_MPP_M)) {
         switch (syscall_code) {
         case (CREATEPROCESS):
+            // klog_print("CREATEPROCESS\n");
             _createProcess();
             break;
         case (TERMPROCESS):
