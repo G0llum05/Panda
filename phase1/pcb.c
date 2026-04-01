@@ -53,6 +53,25 @@ pcb_t* allocPcb() {
     return allocated_node;
 }
 
+static int _isInList(struct list_head* node, struct list_head* list) {
+    pcb_t* iter;
+    list_for_each_entry(iter, list, p_list) {
+        if (&iter->p_list == node)
+            return 1;
+    }
+    return 0;
+}
+
+pcb_t* pcbByPID(int pid) {
+    for (int i = 0; i < MAXPROC; i++) {
+        pcb_t* proc = pcb_table + i;
+        if (proc->p_pid == pid)
+            if (!_isInList(&proc->p_list, &pcbFree_h)) // is active pcb
+                return proc;
+    }
+    return NULL;
+}
+
 void mkEmptyProcQ(struct list_head* head) { INIT_LIST_HEAD(head); }
 
 int emptyProcQ(struct list_head* head) { return list_empty(head); }
