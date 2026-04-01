@@ -17,6 +17,9 @@ void freePcb(pcb_t* p);
 // Allocate new PCB removing one from list "pcbFree_h" if possible
 pcb_t* allocPcb();
 
+// Get pcb pointer from process pid 
+pcb_t* pcbByPID(int pid);
+
 // Create an empty PCB list
 void mkEmptyProcQ(struct list_head* head);
 

@@ -9,6 +9,7 @@
 #include "headers/interrupts.h"
 #include "headers/scheduler.h"
 #include "headers/shared.h"
+#include "headers/klog.h"
 
 #include <uriscv/const.h>
 #include <uriscv/liburiscv.h>
@@ -53,66 +54,51 @@ static void _createProcess() {
     exc_state->reg_a0 = new_process->p_pid;
 }
 
-// Returns a pointer to the root of all processes
-static pcb_PTR _getRoot() {
-    pcb_PTR temp = running_pcb;
-    while (temp->p_parent != NULL) {
-        temp = temp->p_parent;
-    }
-    return temp;
-}
-
-// Returns a pcb with the given pid
-static pcb_PTR _treeSearch(int pid, pcb_PTR node) {
-    if (node->p_pid == pid)
-        return node;
-
-    pcb_PTR child;
-    list_for_each_entry(child, &node->p_child, p_sib) {
-        pcb_PTR found = _treeSearch(pid, child);
-        if (found != NULL)
-            return found;
-    }
-
-    return NULL;
-}
-// Function that terminates a process and all its children recursively
-static void _termChildren(pcb_PTR node) {
-    if (node == NULL)
-        return;
-
-    if (emptyChild(node))
-        return;
-    // Kill children of node
-    pcb_PTR child;
-    list_for_each_entry(child, &node->p_child, p_sib) {
-        _termChildren(child);
-        freePcb(child); // Returns void, so no branching
-        if (outBlocked(child))
-            soft_block_count--;
-        else {
-            outProcQ(&ready_queue, child);
-        }
-        process_count--;
-    }
-}
-
 // kill proc
 static void _term(pcb_t* proc) {
-    _termChildren(proc);
 
-    // Kill node
-    freePcb(proc);
-    if (outBlocked(proc))
-        soft_block_count--;
-    process_count--;
+    if (proc == NULL) {
+        return;
+    }    
+    pcb_PTR deque[MAXPROC];
+    int sp = 0, visited = 0;
+
+    deque[sp++] = proc;
+
+    while(sp != visited) {
+        pcb_PTR curr = deque[visited++];
+        // aggiunta figli
+        
+        if (emptyChild(curr))
+            continue;
+        
+        pcb_PTR fchild = container_of(curr->p_child.next, pcb_t, p_child);
+        pcb_PTR lchild = container_of(curr->p_child.prev, pcb_t, p_child);
+        deque[sp++] = fchild;
+
+        while (lchild != deque[sp - 1]) {
+            struct list_head* next_sib = deque[sp - 1]->p_sib.next;
+            deque[sp++] = container_of(next_sib, pcb_t, p_sib);
+        }
+
+    }
+
+    for (int i = sp - 1; i >= 0; i--) {
+        if (outBlocked(deque[i]))
+            soft_block_count--;
+        else 
+            outProcQ(&ready_queue, deque[i]);
+        outChild(deque[i]);
+        freePcb(deque[i]);
+        process_count--;
+    }
 }
 
 static void _termProcess() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
     int pid = exc_state->reg_a1;
 
-    pcb_PTR target_pcb = pid == 0 ? running_pcb : _treeSearch(pid, _getRoot());
+    pcb_PTR target_pcb = pid == 0 ? running_pcb : pcbByPID(pid);
     _term(target_pcb);
     scheduler();
 }
@@ -125,15 +111,11 @@ static void _puodHandler(int idx) {
         scheduler();
     }
     // else pass up
-    state_t* state = (state_t*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
-    support->sup_exceptState[idx] =
-        (state_t){state->entry_hi, state->cause, state->status, state->pc_epc,
-                  state->mie};
-    for (int i = 0; i < STATE_GPR_LEN; i++) {
-        support->sup_exceptState[idx].gpr[i] = state->gpr[i];
-    }
+    state_t* state = GET_EXCEPTION_STATE_PTR(0);
 
-    context_t* context = support->sup_exceptContext;
+    _copyState(state, &support->sup_exceptState[idx]);
+
+    context_t* context = &support->sup_exceptContext[idx];
     LDCXT(context->stackPtr, context->status, context->pc);
 }
 
@@ -275,11 +257,6 @@ static void _getSupportPtr() {
 
 static void _getProcessId() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
-    klog_print("PARENT PID \n");
-    klog_print_hex(running_pcb->p_parent ? running_pcb->p_parent->p_pid : 0);
-    klog_print("\n PARENT \n");
-    klog_print_hex((memaddr)running_pcb->p_parent);
-    klog_print("\n");
 
     if (exc_state->reg_a1 == 0) {
         exc_state->reg_a0 = running_pcb->p_pid;
@@ -325,7 +302,6 @@ static void _syscallHandler() {
     if (syscall_code < 0 && (mode == MSTATUS_MPP_M)) {
         switch (syscall_code) {
         case (CREATEPROCESS):
-            // klog_print("CREATEPROCESS\n");
             _createProcess();
             break;
         case (TERMPROCESS):
@@ -376,7 +352,7 @@ void exceptionHandler() {
         return;
     }
 
-    switch (CAUSE_CODE(cause)) {
+    switch (cause) {
     case EXC_SYSCALL_1:
     case EXC_SYSCALL_2:
         _syscallHandler();
