@@ -72,7 +72,7 @@ static void nonTimerInterrupt(int intLineNo) {
         dtpreg_t* devAddr = (dtpreg_t*)DEV_REG_ADDR(intLineNo, devNo);
         final_status = devAddr->status;
         devAddr->command = ACK;
-        int sem_index = (intLineNo - 3) * DEVPERINT + devNo;
+        int sem_index = (intLineNo - DEV_IL_START) * DEVPERINT + devNo;
         proc = removeBlocked((int*)&device_semaphores[sem_index]);
     }
 
