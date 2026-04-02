@@ -26,6 +26,8 @@ void scheduler() {
         HALT();
 
     } else if (process_count > 0 && soft_block_count > 0) {
+        running_pcb = NULL;
+
         // 3.2 Important remark
         setMIE(MIE_ALL & ~MIE_MTIE_MASK);
         unsigned int status = getSTATUS();
