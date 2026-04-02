@@ -1,4 +1,5 @@
 #include "./headers/asl.h"
+#include "../phase2/headers/klog.h"
 #include "headers/pcb.h"
 
 static semd_t semd_table[MAXPROC];
@@ -8,16 +9,12 @@ static struct list_head semd_h;
 // Inserts semaphore in the free semaphores list.
 void freeSemd(semd_t* s) { list_add(&s->s_link, &semdFree_h); }
 
-semd_t* allocSemd() {
+static semd_t* allocSemd() {
     // Check availability for a new free semaphore.
     if (list_empty(&semdFree_h))
         return NULL;
-
-    struct list_head* new_free_node = semdFree_h.next;
-    list_del(new_free_node);
-
-    semd_t* allocated_semd = container_of(new_free_node, semd_t, s_link);
-
+    semd_t* allocated_semd = container_of(semdFree_h.next, semd_t, s_link);
+    list_del(semdFree_h.next);
     return allocated_semd;
 }
 
@@ -25,7 +22,7 @@ semd_t* allocSemd() {
     Function to check if a semaphore is active.
     @return 1 if active, 0 if not.
 */
-int semdIsActive(int* semAdd) {
+static int semdIsActive(int* semAdd) {
     struct semd_t* current;
     list_for_each_entry(current, &semd_h, s_link) {
         // Cycles in the ASL to check for semaphore with key semAdd.
@@ -40,7 +37,7 @@ int semdIsActive(int* semAdd) {
     key equal to semAdd.
     @return The pointer to the semaphore, else returns NULL.
 */
-semd_t* getSemd(int* semAdd) {
+static semd_t* getSemd(int* semAdd) {
     struct semd_t* current;
     list_for_each_entry(current, &semd_h, s_link) {
         if (current->s_key == semAdd)
@@ -50,7 +47,7 @@ semd_t* getSemd(int* semAdd) {
 }
 
 // Deactivates the semaphore and puts it in the free semaphores list.
-void deactivateSemd(semd_t* semaphore) {
+static void deactivateSemd(semd_t* semaphore) {
     list_del(&(semaphore->s_link));
     semaphore->s_key = NULL;
     freeSemd(semaphore);
@@ -94,9 +91,15 @@ pcb_t* removeBlocked(int* semAdd) {
     semd_t* semaphore = getSemd(semAdd);
     struct pcb_t* removedPCB = removeProcQ(&semaphore->s_procq);
 
+    if (!removedPCB) {
+        klog("ERROR: active sem w/ no proc");
+        return NULL;
+    }
+
     if (emptyProcQ(&semaphore->s_procq)) {
         deactivateSemd(semaphore);
     }
+
     removedPCB->p_semAdd = NULL;
     return removedPCB;
 }
@@ -108,20 +111,13 @@ pcb_t* outBlocked(pcb_t* p) {
     if (semaphore == NULL)
         return NULL;
 
-    struct list_head* pos;
-
     // Cycles in the semaphore's process queue to remove p
-    list_for_each(pos, &semaphore->s_procq) {
-        pcb_t* pcb_node = container_of(pos, pcb_t, p_list);
-        if (pcb_node == p) {
-            list_del(pos);
-            // Deactives semaphore if its process queue is empty
-            if (emptyProcQ(&semaphore->s_procq)) {
-                deactivateSemd(semaphore);
-            }
-            pcb_node->p_semAdd = NULL;
-            return pcb_node;
+    if (p == outProcQ(&semaphore->s_procq, p)) {
+        p->p_semAdd = NULL;
+        if (emptyProcQ(&semaphore->s_procq)) {
+            deactivateSemd(semaphore);
         }
+        return p;
     }
     return NULL;
 }
