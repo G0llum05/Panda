@@ -37,6 +37,10 @@ void exceptionHandler() {
     unsigned int cause = getCAUSE();
 
     if (CAUSE_IS_INT(cause)) {
+        if (running_pcb) { // if there's a running process, we save its state
+                           // before handling the interrupt
+            _copyState(GET_EXCEPTION_STATE_PTR(0), &running_pcb->p_s);
+        }
         interruptHandler();
         return;
     }
@@ -217,7 +221,7 @@ static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
 
         // The scheduler must know that there's no running process
         // so that it can dispatch a new one properly.
-        running_pcb = NULL;
+        // running_pcb = NULL;
         scheduler();
     }
 
