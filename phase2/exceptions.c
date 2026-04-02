@@ -7,23 +7,125 @@
 #include "headers/exceptions.h"
 #include "headers/initial.h"
 #include "headers/interrupts.h"
+#include "headers/klog.h"
 #include "headers/scheduler.h"
 #include "headers/shared.h"
-#include "headers/klog.h"
 
 #include <uriscv/const.h>
+#include <uriscv/cpu.h>
 #include <uriscv/liburiscv.h>
 #include <uriscv/types.h>
 
-void klog_print(char* str);
-void klog_print_hex(unsigned int num);
-void klog_print_dec(unsigned int num);
-
-// Macro to determine if an exception is an interrupt or not.
-// Works by checking the MSB of the passed register
-#define CAUSE_IS_INT(cause) (((cause) & 0x80000000) != 0)
-
 #define CAUSE_CODE(cause) ((cause) & GETEXECCODE)
+
+static void _syscallHandler();
+static void _createProcess();
+static void _termProcess();
+static void _puodHandler(int idx);
+static void _term(pcb_t* proc);
+static void _passeren();
+static void _verhogen();
+static void _doIO();
+static void _getCPUTime();
+static void _clockWait();
+static void _getSupportPtr();
+static void _getProcessId();
+static void _yield();
+
+// Handles all exceptions, exclusive of TLB-Refill events
+void exceptionHandler() {
+    unsigned int cause = getCAUSE();
+
+    if (CAUSE_IS_INT(cause)) {
+        interruptHandler();
+        return;
+    }
+
+    switch (cause) {
+    case EXC_ECU:
+    case EXC_ECM:
+        _syscallHandler();
+        break;
+
+    case EXC_MOD ... EXC_UTLBS:
+        _puodHandler(PGFAULTEXCEPT);
+        break;
+
+    default:
+        _puodHandler(GENERALEXCEPT);
+        break;
+    }
+}
+
+static void _syscallHandler() {
+    state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
+    // Store the Machine Previous Privilege mode
+    int mode = exc_state->status & MSTATUS_MPP_MASK;
+
+    const int syscall_code = exc_state->reg_a0;
+
+    // Increase PC value and go to next instruction
+    exc_state->pc_epc += 4;
+
+    // If it is a privileged syscall, was the previous state the Machine mode?
+    if (syscall_code < 0 && (mode == MSTATUS_MPP_M)) {
+        switch (syscall_code) {
+        case (CREATEPROCESS):
+            // klog_print("CREATEPROCESS\n");
+            _createProcess();
+            break;
+        case (TERMPROCESS):
+            _termProcess();
+            break;
+        case (PASSEREN):
+            _passeren();
+            break;
+        case (VERHOGEN):
+            _verhogen();
+            break;
+        case (DOIO):
+            _doIO();
+            break;
+        case (GETTIME):
+            _getCPUTime();
+            break;
+        case (CLOCKWAIT):
+            _clockWait();
+            break;
+        case (GETSUPPORTPTR):
+            _getSupportPtr();
+            break;
+        case (GETPROCESSID):
+            _getProcessId();
+            break;
+        case (YIELD):
+            _yield();
+            break;
+        }
+
+        // Restore previous state
+        LDST(exc_state);
+    }
+
+    // It is not a nucleus syscall, so we pass up its handling
+    _puodHandler(GENERALEXCEPT);
+}
+
+// pass up or die sub-handler (spec 8)
+static void _puodHandler(int idx) {
+    support_t* support = running_pcb->p_supportStruct;
+    if (!support) {
+        _term(running_pcb);
+        scheduler();
+    }
+    // else pass up
+    state_t* state = GET_EXCEPTION_STATE_PTR(0);
+
+    _copyState(state, &support->sup_exceptState[idx]);
+
+    context_t* context = &support->sup_exceptContext[idx];
+    LDCXT(context->stackPtr, context->status, context->pc);
+}
 
 static void _createProcess() {
     pcb_PTR new_process = allocPcb();
@@ -59,19 +161,19 @@ static void _term(pcb_t* proc) {
 
     if (proc == NULL) {
         return;
-    }    
+    }
     pcb_PTR deque[MAXPROC];
     int sp = 0, visited = 0;
 
     deque[sp++] = proc;
 
-    while(sp != visited) {
+    while (sp != visited) {
         pcb_PTR curr = deque[visited++];
         // aggiunta figli
-        
+
         if (emptyChild(curr))
             continue;
-        
+
         pcb_PTR fchild = container_of(curr->p_child.next, pcb_t, p_child);
         pcb_PTR lchild = container_of(curr->p_child.prev, pcb_t, p_child);
         deque[sp++] = fchild;
@@ -80,13 +182,12 @@ static void _term(pcb_t* proc) {
             struct list_head* next_sib = deque[sp - 1]->p_sib.next;
             deque[sp++] = container_of(next_sib, pcb_t, p_sib);
         }
-
     }
 
     for (int i = sp - 1; i >= 0; i--) {
         if (outBlocked(deque[i]))
             soft_block_count--;
-        else 
+        else
             outProcQ(&ready_queue, deque[i]);
         outChild(deque[i]);
         freePcb(deque[i]);
@@ -101,22 +202,6 @@ static void _termProcess() {
     pcb_PTR target_pcb = pid == 0 ? running_pcb : pcbByPID(pid);
     _term(target_pcb);
     scheduler();
-}
-
-// pass up or die sub-handler (spec 8)
-static void _puodHandler(int idx) {
-    support_t* support = running_pcb->p_supportStruct;
-    if (!support) {
-        _term(running_pcb);
-        scheduler();
-    }
-    // else pass up
-    state_t* state = GET_EXCEPTION_STATE_PTR(0);
-
-    _copyState(state, &support->sup_exceptState[idx]);
-
-    context_t* context = &support->sup_exceptContext[idx];
-    LDCXT(context->stackPtr, context->status, context->pc);
 }
 
 static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
@@ -286,84 +371,4 @@ static void _yield() {
     // Call a ready process
     running_pcb = NULL;
     scheduler();
-}
-
-static void _syscallHandler() {
-    state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
-    // Store the Machine Previous Privilege mode
-    int mode = exc_state->status & MSTATUS_MPP_MASK;
-
-    const int syscall_code = exc_state->reg_a0;
-
-    // Increase PC value and go to next instruction
-    exc_state->pc_epc += 4;
-
-    // If it is a privileged syscall, was the previous state the Machine mode?
-    if (syscall_code < 0 && (mode == MSTATUS_MPP_M)) {
-        switch (syscall_code) {
-        case (CREATEPROCESS):
-            _createProcess();
-            break;
-        case (TERMPROCESS):
-            _termProcess();
-            break;
-        case (PASSEREN):
-            _passeren();
-            break;
-        case (VERHOGEN):
-            _verhogen();
-            break;
-        case (DOIO):
-            _doIO();
-            break;
-        case (GETTIME):
-            _getCPUTime();
-            break;
-        case (CLOCKWAIT):
-            _clockWait();
-            break;
-        case (GETSUPPORTPTR):
-            _getSupportPtr();
-            break;
-        case (GETPROCESSID):
-            _getProcessId();
-            break;
-        case (YIELD):
-            _yield();
-            break;
-        }
-
-        // Restore previous state
-        LDST(exc_state);
-    }
-
-    // It is not a nucleus syscall, so we pass up its handling
-    _puodHandler(GENERALEXCEPT);
-}
-
-// Handles all exceptions, exclusive of TLB-Refill events
-enum { EXC_SYSCALL_1 = 8, EXC_SYSCALL_2 = 11, TLB_FIRST = 24, TLB_LAST = 28 };
-
-void exceptionHandler() {
-    unsigned int cause = getCAUSE();
-
-    if (CAUSE_IS_INT(cause)) {
-        interruptHandler();
-        return;
-    }
-
-    switch (cause) {
-    case EXC_SYSCALL_1:
-    case EXC_SYSCALL_2:
-        _syscallHandler();
-        break;
-
-    case TLB_FIRST ... TLB_LAST:
-        _puodHandler(PGFAULTEXCEPT);
-        break;
-
-    default:
-        _puodHandler(GENERALEXCEPT);
-        break;
-    }
 }
