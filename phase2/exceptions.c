@@ -368,11 +368,10 @@ static void _yield() {
     // NOTE: we don't use insertChild() here because of spec 6.10:
     // "the yielded process is not immediately re-executed even
     // if it has the highest priority"
-    list_add_tail(&running_pcb->p_list, &ready_queue);
-
+    insertProcQ(ready_queue.next, running_pcb);
     _updateTime(running_pcb);
 
     // Call a ready process
-    running_pcb = NULL;
+    // running_pcb = NULL;
     scheduler();
 }
