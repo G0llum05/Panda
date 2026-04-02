@@ -25,7 +25,14 @@ void scheduler() {
         // When all processes are terminated we shut down
         HALT();
 
-    } else if (process_count > 0 && soft_block_count == 0) {
+    } else if (process_count > 0 && soft_block_count > 0) {
+        // 3.2 Important remark
+        setMIE(MIE_ALL & ~MIE_MTIE_MASK);
+        unsigned int status = getSTATUS();
+        status |= MSTATUS_MIE_MASK;
+        setSTATUS(status);
+        WAIT();
+    } else {
         klog("scheduler: Deadlock\n");
         _STEP();
 
@@ -33,12 +40,5 @@ void scheduler() {
         // quantized using clock interrupts; if no process is
         // waiting for the clock or I/O then there's a deadlock.
         PANIC();
-    } else {
-        // 3.2 Important remark
-        setMIE(MIE_ALL & ~MIE_MTIE_MASK);
-        unsigned int status = getSTATUS();
-        status |= MSTATUS_MIE_MASK;
-        setSTATUS(status);
-        WAIT();
     }
 }
