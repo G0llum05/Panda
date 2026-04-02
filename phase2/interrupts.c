@@ -19,6 +19,7 @@
 static void nonTimerInterrupt(int intlineNo);
 static void localTimerInterrupt();
 static void pseudoClockTick();
+static void enqueue(pcb_t* proc);
 
 void interruptHandler() {
     int exccode = getCAUSE() & CAUSE_EXCCODE_MASK;
@@ -78,10 +79,17 @@ static void nonTimerInterrupt(int intLineNo) {
     if (proc) {
         proc->p_s.reg_a0 = final_status; // 7.1.5
         soft_block_count--;
-        insertProcQ(&ready_queue, proc); // 7.1.6
+        enqueue(proc); // 7.1.6
     }
 
     _exit(); // 7.1.7
+}
+
+static void enqueue(pcb_t* proc) {
+    if (running_pcb == proc)
+        return;
+    else
+        insertProcQ(&ready_queue, proc); // 7.1.6
 }
 
 static void localTimerInterrupt() {
@@ -89,9 +97,8 @@ static void localTimerInterrupt() {
     setTIMER(TIMESLICE);
     state_t* old_state = GET_EXCEPTION_STATE_PTR(0);
     _copyState(old_state, &running_pcb->p_s);
-    insertProcQ(&ready_queue, running_pcb);
+    insertProcQ(&ready_queue, running_pcb); // don't use enqueue see spec
     _updateTime(running_pcb);
-    running_pcb = NULL;
     scheduler();
 }
 
