@@ -7,7 +7,6 @@
 #include "headers/exceptions.h"
 #include "headers/initial.h"
 #include "headers/interrupts.h"
-#include "headers/klog.h"
 #include "headers/scheduler.h"
 #include "headers/shared.h"
 
@@ -75,7 +74,6 @@ static void _syscallHandler() {
     if (syscall_code < 0 && (mode == MSTATUS_MPP_M)) {
         switch (syscall_code) {
         case (CREATEPROCESS):
-            // klog_print("CREATEPROCESS\n");
             _createProcess();
             break;
         case (TERMPROCESS):

@@ -1,6 +1,5 @@
 #include "headers/shared.h"
 #include "../headers/types.h"
-#include "headers/klog.h"
 #include "headers/scheduler.h"
 #include "uriscv/const.h"
 #include <uriscv/liburiscv.h>

@@ -10,7 +10,6 @@
 #include "../phase1/headers/asl.h"
 #include "../phase1/headers/pcb.h"
 #include "headers/initial.h"
-#include "headers/klog.h"
 #include "headers/scheduler.h"
 #include "headers/shared.h"
 

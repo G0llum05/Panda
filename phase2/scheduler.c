@@ -21,7 +21,6 @@ void scheduler() {
         LDST(&running_pcb->p_s);
 
     } else if (process_count == 0) {
-        klog("Halting.\n");
         // When all processes are terminated we shut down
         HALT();
 
@@ -35,8 +34,6 @@ void scheduler() {
         setSTATUS(status);
         WAIT();
     } else {
-        klog("scheduler: Deadlock\n");
-        _STEP();
 
         // This check is logically sound because time is
         // quantized using clock interrupts; if no process is

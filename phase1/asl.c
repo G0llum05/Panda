@@ -1,5 +1,4 @@
 #include "./headers/asl.h"
-#include "../phase2/headers/klog.h"
 #include "headers/pcb.h"
 
 static semd_t semd_table[MAXPROC];
@@ -90,11 +89,6 @@ pcb_t* removeBlocked(int* semAdd) {
 
     semd_t* semaphore = getSemd(semAdd);
     struct pcb_t* removedPCB = removeProcQ(&semaphore->s_procq);
-
-    if (!removedPCB) {
-        klog("ERROR: active sem w/ no proc");
-        return NULL;
-    }
 
     if (emptyProcQ(&semaphore->s_procq)) {
         deactivateSemd(semaphore);
