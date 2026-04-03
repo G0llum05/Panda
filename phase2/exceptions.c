@@ -373,11 +373,12 @@ static void _yield() {
     pcb_t* first = removeProcQ(&ready_queue);
     insertProcQ(&ready_queue, running_pcb);
     // HACK: we override ProcQ functions
-    list_add(&ready_queue, &first->p_list);
+    if (first != NULL) {
+        list_add(&first->p_list, &ready_queue);
+    }
 
     _updateTime(running_pcb);
 
     // Call a ready process
-    // running_pcb = NULL;
     scheduler();
 }
