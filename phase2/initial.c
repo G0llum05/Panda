@@ -11,7 +11,7 @@
 
 unsigned int process_count;
 unsigned int soft_block_count;
-pcb_PTR running_pcb;
+pcb_t* running_pcb;
 struct list_head ready_queue;
 int device_semaphores[SEMDEVLEN];
 int pseudo_clock_semaphore;
@@ -44,7 +44,7 @@ int main() {
     LDIT(PSECOND);
 
     // allocPCB() inizializza tutto a zero/NULL
-    pcb_PTR first_proc = allocPcb();
+    pcb_t* first_proc = allocPcb();
     process_count++;
     insertProcQ(&ready_queue, first_proc);
     first_proc->p_s.mie = MIE_ALL;

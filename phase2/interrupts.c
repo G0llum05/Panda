@@ -11,32 +11,31 @@
 #include "../phase1/headers/pcb.h"
 #include "headers/initial.h"
 #include "headers/scheduler.h"
-#include "headers/shared.h"
 
 #define TERMSTATMASK 0xFF
 
+static void _nonTimerInterrupt(int intlineNo);
+static void _localTimerInterrupt();
+static void _pseudoClockTick();
+static void _enqueue(pcb_t* proc);
 static void _exit();
-static void nonTimerInterrupt(int intlineNo);
-static void localTimerInterrupt();
-static void pseudoClockTick();
-static void enqueue(pcb_t* proc);
 
 void interruptHandler() {
     int exccode = getCAUSE() & CAUSE_EXCCODE_MASK;
     switch (exccode) {
     case IL_TIMER:
-        pseudoClockTick();
+        _pseudoClockTick();
         break;
     case IL_CPUTIMER:
-        localTimerInterrupt();
+        _localTimerInterrupt();
         break;
     default:
-        nonTimerInterrupt(exccode);
+        _nonTimerInterrupt(exccode);
         break;
     }
 }
 
-static void nonTimerInterrupt(int intLineNo) {
+static void _nonTimerInterrupt(int intLineNo) {
     cpu_t devNo = -1;
 
     // decreasing priority: 0x10000040 (l3) .. 0x10000040+0x10 (l7)
@@ -79,20 +78,13 @@ static void nonTimerInterrupt(int intLineNo) {
     if (proc) {
         proc->p_s.reg_a0 = final_status; // 7.1.5
         soft_block_count--;
-        enqueue(proc); // 7.1.6
+        _enqueue(proc); // 7.1.6
     }
 
     _exit(); // 7.1.7
 }
 
-static void enqueue(pcb_t* proc) {
-    if (running_pcb == proc)
-        return;
-    else
-        insertProcQ(&ready_queue, proc); // 7.1.6
-}
-
-static void localTimerInterrupt() {
+static void _localTimerInterrupt() {
     // spec 7.2
     setTIMER(TIMESLICE);
     if (running_pcb != NULL) {
@@ -101,7 +93,7 @@ static void localTimerInterrupt() {
     scheduler();
 }
 
-static void pseudoClockTick() {
+static void _pseudoClockTick() {
     LDIT(PSECOND); // Set interval timer spec 7.3.1
     // spec 7.3.2
     int* key = &pseudo_clock_semaphore;
@@ -118,8 +110,16 @@ static void pseudoClockTick() {
     _exit();
 }
 
+// Prevent process to be enqueued twice in ready_queue
+static void _enqueue(pcb_t* proc) {
+    if (running_pcb == proc)
+        return;
+    else
+        insertProcQ(&ready_queue, proc); // 7.1.6
+}
+
+// Procedure to load state or call the scheduler
 static inline void _exit() {
-    extern pcb_t* running_pcb;
     if (running_pcb)
         LDST(&running_pcb->p_s);
     else

@@ -8,7 +8,6 @@
 #include "headers/initial.h"
 #include "headers/interrupts.h"
 #include "headers/scheduler.h"
-#include "headers/shared.h"
 
 #include <uriscv/const.h>
 #include <uriscv/cpu.h>
@@ -30,6 +29,9 @@ static void _clockWait();
 static void _getSupportPtr();
 static void _getProcessId();
 static void _yield();
+void* memcpy(void* dest, const void* src, unsigned int n);
+static void _copyState(state_t *src, state_t *dest);
+static void _updateTime(pcb_t* p);
 
 // Handles all exceptions, exclusive of TLB-Refill events
 void exceptionHandler() {
@@ -135,7 +137,7 @@ static void _puodHandler(int idx) {
 }
 
 static void _createProcess() {
-    pcb_PTR new_process = allocPcb();
+    pcb_t* new_process = allocPcb();
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
 
     if (new_process == NULL) {
@@ -163,34 +165,38 @@ static void _createProcess() {
     exc_state->reg_a0 = new_process->p_pid;
 }
 
-// kill proc
+// Procedure to kill a process and its progeny
 static void _term(pcb_t* proc) {
 
     if (proc == NULL) {
         return;
     }
-    pcb_PTR deque[MAXPROC];
+
+    pcb_t* deque[MAXPROC];
+    // SP := Stack Pointer; points to the next free location
     int sp = 0, visited = 0;
 
     deque[sp++] = proc;
 
     while (sp != visited) {
-        pcb_PTR curr = deque[visited++];
-        // aggiunta figli
+        pcb_t* curr = deque[visited++];
 
         if (emptyChild(curr))
             continue;
 
-        pcb_PTR fchild = container_of(curr->p_child.next, pcb_t, p_child);
-        pcb_PTR lchild = container_of(curr->p_child.prev, pcb_t, p_child);
+        pcb_t* fchild = container_of(curr->p_child.next, pcb_t, p_child);
+        pcb_t* lchild = container_of(curr->p_child.prev, pcb_t, p_child);
+        // Adding the child...
         deque[sp++] = fchild;
 
+        // ...and its siblings
         while (lchild != deque[sp - 1]) {
             struct list_head* next_sib = deque[sp - 1]->p_sib.next;
             deque[sp++] = container_of(next_sib, pcb_t, p_sib);
         }
     }
 
+    // Killing processes bottom-up
     for (int i = sp - 1; i >= 0; i--) {
         if (outBlocked(deque[i]))
             soft_block_count--;
@@ -206,11 +212,12 @@ static void _termProcess() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
     int pid = exc_state->reg_a1;
 
-    pcb_PTR target_pcb = pid == 0 ? running_pcb : pcbByPID(pid);
+    pcb_t* target_pcb = pid == 0 ? running_pcb : pcbByPID(pid);
     _term(target_pcb);
     scheduler();
 }
 
+// Procedure to P a process on a semaphore
 static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
     // The running process has to wait for the resource
     if (*semAdd > 0) {
@@ -285,15 +292,11 @@ static void _doIO() {
         if (*statusp == READY || *statusp == CHARRECV) {
             *commandp = cpu_state->reg_a2;
         }
-        // REVIEW:
+        // NOTE:
         // 1. If terminal is not ready we shouldn't wait.
         //    Access should be regulated via a mutex, not busy waiting.
         //    See print in p2test.c
         // 2. In case of error we return the status word != ready
-        // 3. Spec 6.5 "For character transmission and receipt, the status
-        //    word, in addition to containing a device completion code, will
-        //    also contain the character transmitted or received" ?
-        //
         else {
             cpu_state->reg_a0 = *statusp;
             return;
@@ -314,7 +317,7 @@ static void _doIO() {
 
     _reusablePasseren(cpu_state, &device_semaphores[semaphore_index]);
 
-    // NOTE: it is a job of the interrupt handler to return the value
+    // NOTE: it is a job of the nonTimerInterrupt() to return ACK
     // in a0 upon completing terminal I/O.
 };
 
@@ -382,4 +385,28 @@ static void _yield() {
 
     // Call a ready process
     scheduler();
+}
+
+void* memcpy(void* dest, const void* src, unsigned int n) {
+    unsigned char* d = (unsigned char*)dest;
+    const unsigned char* s = (const unsigned char*)src;
+    while (n--) {
+        *d++ = *s++;
+    }
+    return dest;
+}
+
+// Procedure to copy state from src to dest
+static void _copyState(state_t* src, state_t* dest) {
+    if (src != NULL && dest != NULL) {
+        // Implicit memcpy call
+        *dest = *src;
+    }
+}
+
+// Procedure to update accumulated process CPU time
+static void _updateTime(pcb_t* p) {
+    cpu_t current_time;
+    STCK(current_time);
+    p->p_time += current_time - start_time;
 }
