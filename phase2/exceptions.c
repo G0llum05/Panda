@@ -111,6 +111,10 @@ static void _syscallHandler() {
         LDST(exc_state);
     }
 
+    if (mode != MSTATUS_MPP_M) {
+        exc_state->cause = PRIVINSTR;
+    }
+
     // It is not a nucleus syscall, so we pass up its handling
     _puodHandler(GENERALEXCEPT);
 }
