@@ -21,14 +21,6 @@ void _copyState(state_t* src, state_t* dest) {
     }
 }
 
-inline void _exit() {
-    extern pcb_t* running_pcb;
-    if (running_pcb)
-        LDST(&running_pcb->p_s);
-    else
-        scheduler();
-}
-
 void _updateTime(pcb_PTR p) {
     cpu_t current_time;
     STCK(current_time);

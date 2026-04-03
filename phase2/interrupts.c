@@ -16,6 +16,13 @@
 
 #define TERMSTATMASK 0xFF
 
+inline void _exit() {
+    extern pcb_t* running_pcb;
+    if (running_pcb)
+        LDST(&running_pcb->p_s);
+    else
+        scheduler();
+}
 static void nonTimerInterrupt(int intlineNo);
 static void localTimerInterrupt();
 static void pseudoClockTick();
