@@ -95,10 +95,9 @@ static void enqueue(pcb_t* proc) {
 static void localTimerInterrupt() {
     // spec 7.2
     setTIMER(TIMESLICE);
-    state_t* old_state = GET_EXCEPTION_STATE_PTR(0);
-    _copyState(old_state, &running_pcb->p_s);
-    insertProcQ(&ready_queue, running_pcb); // don't use enqueue see spec
-    _updateTime(running_pcb);
+    if (running_pcb != NULL) {
+        insertProcQ(&ready_queue, running_pcb); // don't use enqueue see spec
+    }
     scheduler();
 }
 

@@ -39,6 +39,7 @@ void exceptionHandler() {
         if (running_pcb) { // if there's a running process, we save its state
                            // before handling the interrupt
             _copyState(GET_EXCEPTION_STATE_PTR(0), &running_pcb->p_s);
+            _updateTime(running_pcb);
         }
         interruptHandler();
         return;
