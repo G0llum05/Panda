@@ -43,9 +43,11 @@ add_compile_options(-ffreestanding -static -nostartfiles -nostdlib -I${URISCV_IN
 
 file(GLOB PHASE1_SRC "phase1/*.c")
 file(GLOB PHASE2_SRC "phase2/*.c")
+file(GLOB PHASE3_SRC "phase3/*.c")
 add_executable(MultiPandOS
     ${PHASE1_SRC}
     ${PHASE2_SRC}
+    ${PHASE3_SRC}
     ${URISCV_SRC}/crtso.S
     ${URISCV_SRC}/liburiscv.S
 )
