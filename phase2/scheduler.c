@@ -16,7 +16,7 @@ void scheduler() {
     if (!emptyProcQ(&ready_queue)) {
         running_pcb = removeProcQ(&ready_queue);
         STCK(start_time);
-        setTIMER(TIMESLICE);
+        setTIMER(TIMESLICE * (*(int*)TIMESCALEADDR));
         LDST(&running_pcb->p_s);
 
     } else if (process_count == 0) {
