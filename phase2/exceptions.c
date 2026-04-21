@@ -217,6 +217,10 @@ static void _termProcess() {
     scheduler();
 }
 
+static int isDevice (int* semAdd) {
+    return (semAdd >= &device_semaphores[0] && semAdd <= &device_semaphores[SEMDEVLEN - 2]);
+}
+
 // Procedure to P a process on a semaphore
 static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
     // The running process has to wait for the resource
@@ -224,14 +228,11 @@ static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
         *semAdd = *semAdd - 1;
     } else {
         insertBlocked(semAdd, running_pcb);
-        soft_block_count++;
+        soft_block_count += isDevice(semAdd);
         _copyState(cpu_state, &running_pcb->p_s);
 
         _updateTime(running_pcb);
 
-        // The scheduler must know that there's no running process
-        // so that it can dispatch a new one properly.
-        // running_pcb = NULL;
         scheduler();
     }
 
@@ -251,10 +252,10 @@ static void _passeren() {
 }
 
 static void _verhogen() {
-    memaddr* semAdd = (memaddr*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
+    int* semAdd = (int*)GET_EXCEPTION_STATE_PTR(0)->reg_a1;
 
     // If there are blocked processes, unblock one
-    pcb_t* removed_pcb = removeBlocked((int*)semAdd);
+    pcb_t* removed_pcb = removeBlocked(semAdd);
 
     if (removed_pcb != NULL) {
         insertProcQ(&ready_queue, removed_pcb);

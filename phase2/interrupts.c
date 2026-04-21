@@ -86,7 +86,7 @@ static void _nonTimerInterrupt(int intLineNo) {
 
 static void _localTimerInterrupt() {
     // spec 7.2
-    setTIMER(TIMESLICE);
+    setTIMER(TIMESLICE * (*(int*)TIMESCALEADDR));
     if (running_pcb != NULL) {
         insertProcQ(&ready_queue, running_pcb); // don't use enqueue see spec
     }
