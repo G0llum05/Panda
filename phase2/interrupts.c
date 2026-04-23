@@ -11,6 +11,7 @@
 #include "../phase1/headers/pcb.h"
 #include "headers/initial.h"
 #include "headers/scheduler.h"
+#include "uriscv/const.h"
 
 #define TERMSTATMASK 0xFF
 
@@ -86,7 +87,7 @@ static void _nonTimerInterrupt(int intLineNo) {
 
 static void _localTimerInterrupt() {
     // spec 7.2
-    setTIMER(TIMESLICE * (*(int*)TIMESCALEADDR));
+    setTIMER(TIMESLICE * (*(cpu_t*)TIMESCALEADDR));
     if (running_pcb != NULL) {
         insertProcQ(&ready_queue, running_pcb); // don't use enqueue see spec
     }
@@ -120,8 +121,9 @@ static void _enqueue(pcb_t* proc) {
 
 // Procedure to load state or call the scheduler
 static inline void _exit() {
-    if (running_pcb)
+    if (running_pcb) {
+        STCK(start_time);
         LDST(&running_pcb->p_s);
-    else
+    } else
         scheduler();
 }

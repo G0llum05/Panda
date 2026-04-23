@@ -9,14 +9,14 @@
 
 #include "headers/initial.h"
 
-// start time since runnin_pcb re-started computing
+// start time since running_pcb re-started computing
 cpu_t start_time;
 
 void scheduler() {
     if (!emptyProcQ(&ready_queue)) {
         running_pcb = removeProcQ(&ready_queue);
         STCK(start_time);
-        setTIMER(TIMESLICE * (*(int*)TIMESCALEADDR));
+        setTIMER(TIMESLICE * (*(cpu_t*)TIMESCALEADDR));
         LDST(&running_pcb->p_s);
 
     } else if (process_count == 0) {
