@@ -30,8 +30,10 @@ static void _getSupportPtr();
 static void _getProcessId();
 static void _yield();
 void* memcpy(void* dest, const void* src, unsigned int n);
-static void _copyState(state_t *src, state_t *dest);
+static void _copyState(state_t* src, state_t* dest);
 static void _updateTime(pcb_t* p);
+int isDevice(int* semAdd);
+int isPseudoClock(int* semAdd);
 
 // Handles all exceptions, exclusive of TLB-Refill events
 void exceptionHandler() {
@@ -198,9 +200,13 @@ static void _term(pcb_t* proc) {
 
     // Killing processes bottom-up
     for (int i = sp - 1; i >= 0; i--) {
-        if (outBlocked(deque[i]))
+        // If the semaphore is a device semaphore or the pseudo
+        // clock, decrement soft_block_count
+        if (isDevice(deque[i]->p_semAdd) || isPseudoClock(deque[i]->p_semAdd))
             soft_block_count--;
-        else
+        // If it is not blocked on a semaphore, remove it from the ready_queue
+        // side effect: also removes the process from the semaphore
+        if (!outBlocked(deque[i]))
             outProcQ(&ready_queue, deque[i]);
         outChild(deque[i]);
         freePcb(deque[i]);
@@ -217,10 +223,6 @@ static void _termProcess() {
     scheduler();
 }
 
-static int isDevice (int* semAdd) {
-    return (semAdd >= &device_semaphores[0] && semAdd <= &device_semaphores[SEMDEVLEN - 2]);
-}
-
 // Procedure to P a process on a semaphore
 static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
     // The running process has to wait for the resource
@@ -228,7 +230,9 @@ static void _reusablePasseren(state_t* cpu_state, int* semAdd) {
         *semAdd = *semAdd - 1;
     } else {
         insertBlocked(semAdd, running_pcb);
-        soft_block_count += isDevice(semAdd);
+        if (isDevice(semAdd) || isPseudoClock(semAdd)) {
+            soft_block_count++;
+        }
         _copyState(cpu_state, &running_pcb->p_s);
 
         _updateTime(running_pcb);
@@ -258,6 +262,8 @@ static void _verhogen() {
     pcb_t* removed_pcb = removeBlocked(semAdd);
 
     if (removed_pcb != NULL) {
+        if (isDevice(semAdd) || isPseudoClock(semAdd))
+            soft_block_count--;
         insertProcQ(&ready_queue, removed_pcb);
     } else {
         *semAdd = *semAdd + 1;
@@ -411,3 +417,12 @@ static void _updateTime(pcb_t* p) {
     STCK(current_time);
     p->p_time += current_time - start_time;
 }
+
+// Procedure to check if a semaphore is a device semaphore
+int isDevice(int* semAdd) {
+    return (semAdd >= &device_semaphores[0] &&
+            semAdd <= &device_semaphores[SEMDEVLEN - 2]);
+}
+
+// Procedure to check if a semaphore is the pseudo clock semaphore
+int isPseudoClock(int* semAdd) { return (semAdd == &pseudo_clock_semaphore); }
