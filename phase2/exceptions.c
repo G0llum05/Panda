@@ -16,7 +16,7 @@
 
 #define CAUSE_CODE(cause) ((cause) & GETEXECCODE)
 
-static void _syscallHandler();
+static void _nucleusSyscallHandler();
 static void _createProcess();
 static void _termProcess();
 static void _puodHandler(int idx);
@@ -36,7 +36,7 @@ int isDevice(int* semAdd);
 int isPseudoClock(int* semAdd);
 
 // Handles all exceptions, exclusive of TLB-Refill events
-void exceptionHandler() {
+void nucleusExceptionHandler() {
     unsigned int cause = getCAUSE();
 
     if (CAUSE_IS_INT(cause)) {
@@ -52,7 +52,7 @@ void exceptionHandler() {
     switch (cause) {
     case EXC_ECU:
     case EXC_ECM:
-        _syscallHandler();
+        _nucleusSyscallHandler();
         break;
 
     case EXC_MOD ... EXC_UTLBS:
@@ -65,7 +65,7 @@ void exceptionHandler() {
     }
 }
 
-static void _syscallHandler() {
+static void _nucleusSyscallHandler() {
     state_t* exc_state = GET_EXCEPTION_STATE_PTR(0);
     // Store the Machine Previous Privilege mode
     int mode = exc_state->status & MSTATUS_MPP_MASK;

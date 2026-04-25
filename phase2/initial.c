@@ -23,7 +23,7 @@ int main() {
 
     pass_up_vector->tlb_refill_handler = (memaddr)uTLB_RefillHandler;
     pass_up_vector->tlb_refill_stackPtr = (memaddr)KERNELSTACK;
-    pass_up_vector->exception_handler = (memaddr)exceptionHandler;
+    pass_up_vector->exception_handler = (memaddr)nucleusExceptionHandler;
     pass_up_vector->exception_stackPtr = (memaddr)KERNELSTACK;
 
     initPcbs();
