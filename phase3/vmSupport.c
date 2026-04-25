@@ -1,9 +1,18 @@
 #include "../headers/types.h"
+#include "uriscv/types.h"
+#include <uriscv/cpu.h>
 #include <uriscv/liburiscv.h>
 
 void uTLB_RefillHandler() {
-    setENTRYHI(0x80000000);
-    setENTRYLO(0x00000000);
+    state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
+    unsigned int vpn = ENTRYHI_GET_VPN(cpu_state->entry_hi);
+    SYSCALL(GETSUPPORTPTR, 0, 0, 0);
+    support_t* support_structure = (support_t*)cpu_state->reg_a0;
+    // VPI := Virtual Page Index
+    unsigned int vpi = (vpn - 0x80000000) >> 12;
+    pteEntry_t page_table = support_structure->sup_privatePgTbl[vpi];
+    setENTRYHI(page_table.pte_entryHI);
+    setENTRYLO(page_table.pte_entryLO);
     TLBWR();
     LDST((state_t*)BIOSDATAPAGE);
 }
