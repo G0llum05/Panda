@@ -6,8 +6,10 @@
 void uTLB_RefillHandler() {
     state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
     unsigned int vpn = ENTRYHI_GET_VPN(cpu_state->entry_hi);
-    SYSCALL(GETSUPPORTPTR, 0, 0, 0);
-    support_t* support_structure = (support_t*)cpu_state->reg_a0;
+    // Spec 3#Technical Point: The refill handler is allowed
+    // to use phase 2 structures and global variables.
+    extern pcb_t* running_pcb;
+    support_t* support_structure = running_pcb->p_supportStruct;
     // VPI := Virtual Page Index
     unsigned int vpi = (vpn - 0x80000000) >> 12;
     pteEntry_t page_table = support_structure->sup_privatePgTbl[vpi];
