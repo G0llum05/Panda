@@ -11,8 +11,6 @@
 #define FLASHDEVICES 8
 
 void* swap_pool = (void*)SWAPPOOLADDR;
-swap_t swap_pool_table[2 * UPROCMAX];
-unsigned int swap_pool_mutex = 1;
 unsigned int shell_mutex = 0;
 unsigned int master_semaphore = 0;
 
