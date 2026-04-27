@@ -1,6 +1,6 @@
 #ifndef SYSSUPPORT_H
 #define SYSSUPPORT_H
 
-static void supportExceptionHandler();
+void supportExceptionHandler();
 
 #endif

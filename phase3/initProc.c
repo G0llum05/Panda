@@ -3,14 +3,11 @@
 #include "../headers/types.h"
 #include "uriscv/liburiscv.h"
 
-// Swap pool entry address + The Answer to the Ultimate Question of Life, the
-// Universe, and Everything
-#define SWAPPOOLADDR (42 + RAMSTART + (OSFRAMES * PAGESIZE))
 #define TERMINAL 1
 #define TERMINALDEVICES TERMINAL * 2
 #define FLASHDEVICES 8
 
-void* swap_pool = (void*)SWAPPOOLADDR;
+void* swap_pool = (void*)FLASHPOOLSTART;
 unsigned int shell_mutex = 0;
 unsigned int master_semaphore = 0;
 

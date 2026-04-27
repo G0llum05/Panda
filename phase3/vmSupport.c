@@ -1,8 +1,13 @@
 #include "headers/vmSupport.h"
+#include "../headers/const.h"
 #include "../headers/types.h"
+#include "headers/sysSupport.h"
+#include "uriscv/arch.h"
+#include "uriscv/const.h"
 #include "uriscv/types.h"
 #include <uriscv/cpu.h>
 #include <uriscv/liburiscv.h>
+#include <uriscv/types.h>
 
 // Spec 5.4
 static unsigned int frame_to_pick = 0;
@@ -10,6 +15,8 @@ static unsigned int frame_to_pick = 0;
 // Spec 12.2: "[...] the Swap Pool table is local to this module."
 static swap_t swap_pool_table[SWAPPOOLSIZE];
 static unsigned int swap_pool_mutex = 1;
+
+static void _handleStatus(unsigned int*);
 
 // Spec 12.2: "The test function will now invoke [...] initSwapStructs
 // which will do the work of initializing the Swap Pool table."
@@ -55,9 +62,9 @@ void pager() {
     // trap. See sysSupport.c for more details.
 
     // Step 4
-    SYSCALL(PASSEREN, (int)&swap_pool_mutex, 0, 0);
+    SYSCALL(PASSEREN, (unsigned int)&swap_pool_mutex, 0, 0);
 
-    // Step 5
+    // Step 5 - Missing page to load
     unsigned int missing_page =
         ENTRYHI_GET_VPN(support_structure->sup_exceptState[0].entry_hi);
 
@@ -69,21 +76,81 @@ void pager() {
     // policy. It uses a static variable modulo the size of
     // the swap pool to choose the next frame sequentially.
 
-    setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
-
-    swap_t* swap_frame_ptr = &swap_pool_table[frame_to_pick % SWAPPOOLSIZE];
-
-    if (swap_frame_ptr->sw_asid != -1) { // A user process uses this frame
-        setENTRYHI(swap_frame_ptr->sw_pte->pte_entryHI);
-        SETBITOFF(swap_frame_ptr->sw_pte->pte_entryLO, ENTRYLO_VALID_BIT);
+    swap_t* swapp_entry = &swap_pool_table[frame_to_pick];
+    pteEntry_t* process_pte = swapp_entry->sw_pte;
+    dtpreg_t* dev_addr =
+        (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, support_structure->sup_asid);
+    unsigned int* status_code;
+    memaddr swap_frame = ENTRYLO_GET_PFN(swapp_entry->sw_pte->pte_entryLO);
+    if (swapp_entry->sw_asid != -1) { // A user process uses this frame
+        setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
+        SETBITOFF(process_pte->pte_entryLO, ENTRYLO_VALID_BIT);
+        // NOTE: TLBP() uses entryHi to match the entry in TLB
+        setENTRYHI(process_pte->pte_entryHI);
         TLBP();
         // Is the frame cached in the TLB?
-        if ((getINDEX() & PROBEBIT) == 0) {
-            setENTRYLO(swap_frame_ptr->sw_pte->pte_entryLO);
+        if ((getINDEX() & PROBEBIT) == 0) { // If 0, frame found
+            setENTRYLO(process_pte->pte_entryLO);
             TLBWI();
         }
+        setSTATUS(getSTATUS() | MSTATUS_MIE_MASK);
+
+        // Save old frame
+        dev_addr->data0 = swap_frame;
+        status_code =
+            (unsigned int*)SYSCALL(DOIO, (int)dev_addr, FLASHWRITE, 0);
+
+        _handleStatus(status_code);
     }
 
-    frame_to_pick++;
+    // Step 9
+    // Load missing page into memory
+    dev_addr->data0 = missing_page; // REVIEW: input? Domain: flash address
+    dev_addr->data1 = swap_frame;   // REVIEW: output? Co-Dom: physical mem
+    status_code = (unsigned int*)SYSCALL(DOIO, (int)dev_addr, FLASHREAD, 0);
+    _handleStatus(status_code);
+
+    // Step 10
+    swapp_entry->sw_asid = support_structure->sup_asid;
+    process_pte = &support_structure->sup_privatePgTbl[missing_page];
+
+    // Step 11
+    setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
+
+    process_pte->pte_entryLO &= ~ENTRYLO_PFN_MASK;
+    SETBITON(process_pte->pte_entryLO, ENTRYLO_VALID_BIT);
+    process_pte->pte_entryLO |= (swap_frame & ENTRYLO_PFN_MASK);
+
+    // Step 12
+
+    setENTRYHI(process_pte->pte_entryHI);
+    TLBP();
+    // Is the frame cached in the TLB?
+    if ((getINDEX() & PROBEBIT) == 0) { // If 0, frame found
+        setENTRYLO(process_pte->pte_entryLO);
+        TLBWI();
+    }
+
     setSTATUS(getSTATUS() | MSTATUS_MIE_MASK);
+
+    frame_to_pick = (frame_to_pick + 1) % SWAPPOOLSIZE;
+
+    // Step 13
+
+    SYSCALL(VERHOGEN, (unsigned int)&swap_pool_mutex, 0, 0);
+
+    // Step 14
+    LDST(&support_structure->sup_exceptState[0]);
+}
+
+static void _handleStatus(unsigned int* status_code) {
+    switch (*status_code) {
+    case UNINSTALLED:
+    case READY:
+    case BUSY:
+        // TODO: see what to do in these cases
+        break;
+    default:
+        supportExceptionHandler();
+    }
 }

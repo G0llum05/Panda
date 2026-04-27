@@ -3,8 +3,8 @@
 #include "uriscv/cpu.h"
 #include "uriscv/liburiscv.h"
 
-static void supportSyscallHandler();
-static void programTrapHandler();
+static void _supportSyscallHandler();
+static void _programTrapHandler();
 
 void supportExceptionHandler() {
     // REVIEW: does this function automatically get the
@@ -21,17 +21,17 @@ void supportExceptionHandler() {
     // REVIEW: Environment Calls in Machine mode should not be
     // processed by the support level exception handler
     case EXC_ECU:
-        supportSyscallHandler();
+        _supportSyscallHandler();
         break;
 
     // Spec 4.2: "[...] TLB-modification exceptions should not occur.
     // If they do, they should be treated as a program trap."
     default:
-        programTrapHandler();
+        _programTrapHandler();
         break;
     }
 }
 
-static void supportSyscallHandler() {}
+static void _supportSyscallHandler() {}
 
-static void programTrapHandler() {}
+static void _programTrapHandler() {}
