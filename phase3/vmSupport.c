@@ -97,8 +97,15 @@ void pager() {
 
         // Save old frame
         dev_addr->data0 = swap_frame;
+
+        SYSCALL(PASSEREN,
+                (unsigned int)&device_mutex[support_structure->sup_asid], 0, 0);
+
         status_code =
             (unsigned int*)SYSCALL(DOIO, (int)dev_addr, FLASHWRITE, 0);
+
+        SYSCALL(VERHOGEN,
+                (unsigned int)&device_mutex[support_structure->sup_asid], 0, 0);
 
         _handleStatus(status_code);
     }
@@ -107,7 +114,15 @@ void pager() {
     // Load missing page into memory
     dev_addr->data0 = missing_page; // REVIEW: input? Domain: flash address
     dev_addr->data1 = swap_frame;   // REVIEW: output? Co-Dom: physical mem
+
+    SYSCALL(PASSEREN, (unsigned int)&device_mutex[support_structure->sup_asid],
+            0, 0);
+
     status_code = (unsigned int*)SYSCALL(DOIO, (int)dev_addr, FLASHREAD, 0);
+
+    SYSCALL(VERHOGEN, (unsigned int)&device_mutex[support_structure->sup_asid],
+            0, 0);
+
     _handleStatus(status_code);
 
     // Step 10
@@ -140,17 +155,16 @@ void pager() {
     SYSCALL(VERHOGEN, (unsigned int)&swap_pool_mutex, 0, 0);
 
     // Step 14
-    LDST(&support_structure->sup_exceptState[0]);
+    LDST(&support_structure->sup_exceptState[PGFAULTEXCEPT]);
 }
 
 static void _handleStatus(unsigned int* status_code) {
     switch (*status_code) {
-    case UNINSTALLED:
     case READY:
-    case BUSY:
         // TODO: see what to do in these cases
         break;
     default:
+        SYSCALL(VERHOGEN, (unsigned int)&swap_pool_mutex, 0, 0);
         supportExceptionHandler();
     }
 }
