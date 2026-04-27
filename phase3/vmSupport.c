@@ -1,6 +1,7 @@
 #include "headers/vmSupport.h"
 #include "../headers/const.h"
 #include "../headers/types.h"
+#include "headers/initProc.h"
 #include "headers/sysSupport.h"
 #include "uriscv/arch.h"
 #include "uriscv/const.h"
@@ -14,7 +15,7 @@ static unsigned int frame_to_pick = 0;
 
 // Spec 12.2: "[...] the Swap Pool table is local to this module."
 static swap_t swap_pool_table[SWAPPOOLSIZE];
-static unsigned int swap_pool_mutex = 1;
+unsigned int swap_pool_mutex = 1;
 
 static void _handleStatus(unsigned int*);
 
@@ -53,10 +54,10 @@ void pager() {
     // Step 1
     support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
 
-    // Step 2
-    unsigned int cause = support_structure->sup_exceptState[0].cause;
+    // Step 2-3
+    // unsigned int cause =
+    //     support_structure->sup_exceptState[PGFAULTEXCEPT].cause;
 
-    // Step 3
     // REVIEW:
     // If cause == TLB_MOD the supportExceptionHandler defaults to a program
     // trap. See sysSupport.c for more details.
@@ -65,8 +66,8 @@ void pager() {
     SYSCALL(PASSEREN, (unsigned int)&swap_pool_mutex, 0, 0);
 
     // Step 5 - Missing page to load
-    unsigned int missing_page =
-        ENTRYHI_GET_VPN(support_structure->sup_exceptState[0].entry_hi);
+    unsigned int missing_page = ENTRYHI_GET_VPN(
+        support_structure->sup_exceptState[PGFAULTEXCEPT].entry_hi);
 
     // Step 6-7-8
 

@@ -3,3 +3,5 @@ build/
 .vscode/
 term0.uriscv
 *.swp
+testers/*
+!testers/*.c

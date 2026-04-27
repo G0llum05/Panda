@@ -1,4 +1,6 @@
 #include "headers/sysSupport.h"
+#include "../headers/const.h"
+#include "../headers/types.h"
 #include "headers/vmSupport.h"
 #include "uriscv/cpu.h"
 #include "uriscv/liburiscv.h"
@@ -32,6 +34,16 @@ void supportExceptionHandler() {
     }
 }
 
-static void _supportSyscallHandler() {}
+static void _supportSyscallHandler() {
+    support_t* process_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
 
-static void _programTrapHandler() {}
+    // Store the Machine Previous Privilege mode
+    int mode = process_support->sup_exceptState[GENERALEXCEPT].status;
+
+    const int syscall_code = exc_state->reg_a0;
+
+    // Increase PC value and go to next instruction
+    exc_state->pc_epc += 4;
+}
+
+static void _programTrapHandler() { SYSCALL(TERMPROCESS, 0, 0, 0); }
