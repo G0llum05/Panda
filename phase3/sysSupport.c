@@ -2,9 +2,11 @@
 #include "../headers/const.h"
 #include "../headers/types.h"
 #include "../testers/h/tconst.h"
+#include "headers/initProc.h"
 #include "headers/vmSupport.h"
 #include "uriscv/cpu.h"
 #include "uriscv/liburiscv.h"
+#include "uriscv/types.h"
 
 static void _supportSyscallHandler();
 void programTrapHandler();
@@ -76,9 +78,72 @@ static void _supportSyscallHandler() {
 
 static void _terminate() { SYSCALL(TERMPROCESS, 0, 0, 0); }
 
-static void _writeTerminal() {}
+static void _writeTerminal() {
+    termreg_t* terminal = (termreg_t*)(TERM0ADDR);
+    memaddr* command = (memaddr*)terminal + 3;
+    memaddr status;
 
-static void _readTerminal() {}
+    support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
+
+    char* msg = (char*)support_structure->sup_exceptState->reg_a1;
+    int char_number = (int)support_structure->sup_exceptState->reg_a2;
+    int char_transmitted = 0;
+
+    // REVIEW:
+    // Spec 7.2: It is an error to write to a terminal device from an address
+    // outside of the requesting U-proc’s logical address space
+    if (((memaddr)msg < KUSEG) && (char_number < 0 || char_number > 128))
+        SYSCALL(TERMPROCESS, 0, 0, 0);
+
+    SYSCALL(PASSEREN, (int)&device_mutex[TERMINALINPUT], 0, 0);
+
+    while (*msg != EOS) {
+        unsigned int value = PRINTCHR | (((unsigned int)*msg) << 8);
+        status = SYSCALL(DOIO, (int)command, (int)value, 0);
+        if ((status & TERMSTATMASK) != CHARRECV) {
+            terminal->transm_status = ~status;
+            break;
+        }
+        char_transmitted++;
+        msg++;
+    }
+
+    support_structure->sup_exceptState->reg_a0 = char_transmitted;
+
+    SYSCALL(VERHOGEN, (int)&device_mutex[TERMINALINPUT], 0, 0);
+}
+
+static void _readTerminal() {
+    termreg_t* terminal = (termreg_t*)(TERM0ADDR);
+    memaddr* command = (memaddr*)terminal + 3;
+    memaddr status;
+
+    support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
+
+    char* msg = (char*)support_structure->sup_exceptState->reg_a1;
+    int char_transmitted = 0;
+
+    // REVIEW:
+    // Spec 7.2: It is an error to write to a terminal device from an address
+    // outside of the requesting U-proc’s logical address space
+
+    SYSCALL(PASSEREN, (int)&device_mutex[TERMINALOUTPUT], 0, 0);
+
+    while (*msg != EOS) {
+        unsigned int value = RECEIVECHAR | (((unsigned int)*msg) << 8);
+        status = SYSCALL(DOIO, (int)command, (int)value, 0);
+        if ((status & TERMSTATMASK) != CHARRECV) {
+            terminal->transm_status = ~status;
+            break;
+        }
+        char_transmitted++;
+        msg++;
+    }
+
+    support_structure->sup_exceptState->reg_a0 = char_transmitted;
+
+    SYSCALL(VERHOGEN, (int)&device_mutex[TERMINALOUTPUT], 0, 0);
+}
 
 static void _execute() {}
 

@@ -8,7 +8,10 @@ void* swap_pool = (void*)FLASHPOOLSTART;
 unsigned int shell_mutex = 0;
 unsigned int master_semaphore = 0;
 
-// Sem I/O
+// Device mutex
+// Flash devices index 0-7
+// Terminal input device index 8
+// Terminal output device index 9
 unsigned int device_mutex[FLASHDEVICES + TERMINALDEVICES];
 
 // Instatiator process
