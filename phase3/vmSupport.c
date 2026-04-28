@@ -166,6 +166,6 @@ static void _handleStatus(unsigned int* status_code) {
         break;
     default:
         SYSCALL(VERHOGEN, (unsigned int)&swap_pool_mutex, 0, 0);
-        supportExceptionHandler();
+        programTrapHandler();
     }
 }

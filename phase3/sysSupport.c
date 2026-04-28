@@ -1,12 +1,17 @@
 #include "headers/sysSupport.h"
 #include "../headers/const.h"
 #include "../headers/types.h"
+#include "../testers/h/tconst.h"
 #include "headers/vmSupport.h"
 #include "uriscv/cpu.h"
 #include "uriscv/liburiscv.h"
 
 static void _supportSyscallHandler();
-static void _programTrapHandler();
+void programTrapHandler();
+static void _terminate();
+static void _writeTerminal();
+static void _readTerminal();
+static void _execute();
 
 void supportExceptionHandler() {
     // REVIEW: does this function automatically get the
@@ -29,7 +34,7 @@ void supportExceptionHandler() {
     // Spec 4.2: "[...] TLB-modification exceptions should not occur.
     // If they do, they should be treated as a program trap."
     default:
-        _programTrapHandler();
+        programTrapHandler();
         break;
     }
 }
@@ -40,10 +45,41 @@ static void _supportSyscallHandler() {
     // Store the Machine Previous Privilege mode
     int mode = process_support->sup_exceptState[GENERALEXCEPT].status;
 
-    const int syscall_code = exc_state->reg_a0;
+    const int syscall_code =
+        process_support->sup_exceptState[GENERALEXCEPT].reg_a0;
 
     // Increase PC value and go to next instruction
-    exc_state->pc_epc += 4;
+    process_support->sup_exceptState[GENERALEXCEPT].pc_epc += 4;
+
+    if (syscall_code > 0 && (mode == MSTATUS_MPP_U)) {
+        switch (syscall_code) {
+        case (TERMINATE):
+            _terminate();
+            break;
+        case (WRITETERMINAL):
+            _writeTerminal();
+            break;
+        case (READTERMINAL):
+            _readTerminal();
+            break;
+        case (EXECUTE):
+            _execute();
+            break;
+        default:
+            programTrapHandler();
+            break;
+        }
+        LDST(&process_support->sup_exceptState[GENERALEXCEPT]);
+    }
+    programTrapHandler();
 }
 
-static void _programTrapHandler() { SYSCALL(TERMPROCESS, 0, 0, 0); }
+static void _terminate() { SYSCALL(TERMPROCESS, 0, 0, 0); }
+
+static void _writeTerminal() {}
+
+static void _readTerminal() {}
+
+static void _execute() {}
+
+void programTrapHandler() { SYSCALL(TERMPROCESS, 0, 0, 0); }

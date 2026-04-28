@@ -2,5 +2,6 @@
 #define SYSSUPPORT_H
 
 void supportExceptionHandler();
+void programTrapHandler();
 
 #endif

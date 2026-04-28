@@ -1,6 +1,7 @@
 #include "headers/initProc.h"
 #include "../headers/const.h"
 #include "../headers/types.h"
+#include "headers/vmSupport.h"
 #include "uriscv/liburiscv.h"
 
 void* swap_pool = (void*)FLASHPOOLSTART;
@@ -13,6 +14,7 @@ unsigned int device_mutex[FLASHDEVICES + TERMINALDEVICES];
 // Instatiator process
 void test() {
     // Initialize Swap Pool Table
+    initSwapStructs();
 
     // Initialize shell support struct
 
