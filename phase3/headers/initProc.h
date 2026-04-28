@@ -6,5 +6,6 @@
 #define FLASHDEVICES 8
 
 extern unsigned int device_mutex[FLASHDEVICES + TERMINALDEVICES];
+extern unsigned int shell_mutex;
 
 #endif

@@ -124,7 +124,7 @@ static void _readTerminal() {
     int char_transmitted = 0;
 
     // REVIEW:
-    // Spec 7.2: It is an error to write to a terminal device from an address
+    // Spec 7.3: It is an error to write to a terminal device from an address
     // outside of the requesting U-proc’s logical address space
 
     SYSCALL(PASSEREN, (int)&device_mutex[TERMINALOUTPUT], 0, 0);
@@ -145,6 +145,15 @@ static void _readTerminal() {
     SYSCALL(VERHOGEN, (int)&device_mutex[TERMINALOUTPUT], 0, 0);
 }
 
-static void _execute() {}
+static void _execute() {
+    support_t* shell_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
+    unsigned int asid = shell_support->sup_exceptState[GENERALEXCEPT].reg_a1;
+
+    SYSCALL(CREATEPROCESS, 0, PROCESS_PRIO_HIGH, 0);
+
+    SYSCALL(PASSEREN, (unsigned int)&shell_mutex, 0, 0);
+
+    SYSCALL(VERHOGEN, (unsigned int)&shell_mutex, 0, 0);
+}
 
 void programTrapHandler() { SYSCALL(TERMPROCESS, 0, 0, 0); }
