@@ -4,4 +4,6 @@ build/
 term0.uriscv
 *.swp
 testers/*
+!testers/h/
+!testers/h/*.h
 !testers/*.c
