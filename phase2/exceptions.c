@@ -108,6 +108,9 @@ static void _nucleusSyscallHandler() {
         case (YIELD):
             _yield();
             break;
+        // if syscall code is invalid, we treat it as a puod
+        default:
+            _puodHandler(GENERALEXCEPT);
         }
 
         // Restore previous state
