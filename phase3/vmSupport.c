@@ -21,7 +21,11 @@ static void _handleStatus(unsigned int*);
 
 // Spec 12.2: "The test function will now invoke [...] initSwapStructs
 // which will do the work of initializing the Swap Pool table."
-void initSwapStructs() {}
+void initSwapStructs() {
+    for (int i = 0; i < SWAPPOOLSIZE; i++) {
+        swap_pool_table[i].sw_asid = -1;
+    }
+}
 
 // Spec 3
 void uTLB_RefillHandler() {
@@ -32,10 +36,11 @@ void uTLB_RefillHandler() {
     extern pcb_t* running_pcb;
     support_t* support_structure = running_pcb->p_supportStruct;
     // VPI := Virtual Page Index
-    unsigned int vpi = (vpn - 0x80000000) >> 12;
+    unsigned int vpi = (vpn - KUSEG) >> ENTRYHI_VPN_BIT;
     pteEntry_t page_table = support_structure->sup_privatePgTbl[vpi];
     setENTRYHI(page_table.pte_entryHI);
     setENTRYLO(page_table.pte_entryLO);
+    // REVIEW: should it be TLB Write Random or TLB Write Index?
     TLBWR();
     LDST((state_t*)BIOSDATAPAGE);
 }
@@ -55,12 +60,15 @@ void pager() {
     support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
 
     // Step 2-3
-    // unsigned int cause =
-    //     support_structure->sup_exceptState[PGFAULTEXCEPT].cause;
+    unsigned int cause =
+        support_structure->sup_exceptState[PGFAULTEXCEPT].cause;
 
     // REVIEW:
     // If cause == TLB_MOD the supportExceptionHandler defaults to a program
     // trap. See sysSupport.c for more details.
+    if (cause == EXC_MOD) {
+        programTrapHandler();
+    }
 
     // Step 4
     SYSCALL(PASSEREN, (unsigned int)&swap_pool_mutex, 0, 0);
@@ -78,12 +86,14 @@ void pager() {
     // the swap pool to choose the next frame sequentially.
 
     swap_t* swapp_entry = &swap_pool_table[frame_to_pick];
+    int process_asid = swapp_entry->sw_asid;
+
     pteEntry_t* process_pte = swapp_entry->sw_pte;
     dtpreg_t* dev_addr =
         (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, support_structure->sup_asid);
     unsigned int* status_code;
     memaddr swap_frame = ENTRYLO_GET_PFN(swapp_entry->sw_pte->pte_entryLO);
-    if (swapp_entry->sw_asid != -1) { // A user process uses this frame
+    if (process_asid != -1) { // A user process uses this frame
         setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
         SETBITOFF(process_pte->pte_entryLO, ENTRYLO_VALID_BIT);
         // NOTE: TLBP() uses entryHi to match the entry in TLB
@@ -127,7 +137,9 @@ void pager() {
     _handleStatus(status_code);
 
     // Step 10
-    swapp_entry->sw_asid = support_structure->sup_asid;
+    process_asid = support_structure->sup_asid;
+    // REVIEW: should we update VPN in swap pool?
+    swapp_entry->sw_pageNo = missing_page;
     process_pte = &support_structure->sup_privatePgTbl[missing_page];
 
     // Step 11

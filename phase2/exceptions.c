@@ -7,6 +7,7 @@
 #include "headers/exceptions.h"
 #include "headers/initial.h"
 #include "headers/interrupts.h"
+#include "headers/klog.h"
 #include "headers/scheduler.h"
 
 #include <uriscv/const.h>
@@ -137,6 +138,7 @@ static void _puodHandler(int idx) {
 
     _copyState(state, &support->sup_exceptState[idx]);
 
+    _STEP();
     context_t* context = &support->sup_exceptContext[idx];
     LDCXT(context->stackPtr, context->status, context->pc);
 }

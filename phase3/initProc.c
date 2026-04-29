@@ -1,6 +1,8 @@
 #include "headers/initProc.h"
 #include "../headers/const.h"
 #include "../headers/types.h"
+#include "../phase2/headers/klog.h"
+#include "../testers/h/string.h"
 #include "headers/sysSupport.h"
 #include "headers/vmSupport.h"
 #include "uriscv/liburiscv.h"
@@ -46,6 +48,7 @@ void test() {
     SYSCALL(CREATEPROCESS, (int)&shell_state, PROCESS_PRIO_LOW,
             (int)&shell_support);
 
+    klog_print("P");
     // master_semaphore.P() to start shell
     SYSCALL(PASSEREN, (int)&master_semaphore, 0, 0);
 

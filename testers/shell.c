@@ -18,6 +18,10 @@ const command_t commands[] = {{"uname", _uname}, {"exit", _exit}};
 
 void main() {
     char ibuffer[256];
+    char* message = "FUCK YOU\n";
+    if (SYSCALL(WRITETERMINAL, (int)message, strlen(message), 0) < 0) {
+        _exit();
+    }
     while (1) { // main loop
         // read input
         const int ilen = SYSCALL(READTERMINAL, (int)ibuffer, 0, 0);

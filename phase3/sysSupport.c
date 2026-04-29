@@ -1,6 +1,7 @@
 #include "headers/sysSupport.h"
 #include "../headers/const.h"
 #include "../headers/types.h"
+#include "../phase2/headers/klog.h"
 #include "../testers/h/tconst.h"
 #include "headers/initProc.h"
 #include "headers/vmSupport.h"
@@ -20,10 +21,11 @@ void supportExceptionHandler() {
     // cause from the correct exception state?
     // It is important, otherwise we don't know where
     // to route the exception in the switch.
-    unsigned int cause = getCAUSE();
+    support_t* support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
+    unsigned int cause = support->sup_exceptState[GENERALEXCEPT].cause;
 
     switch (cause) {
-    case EXC_TLBL ... EXC_UTLBS:
+    case EXC_TLBL ... EXC_UTLBS: // never?
         pager();
         break;
 
@@ -115,7 +117,7 @@ static void _writeTerminal() {
 
 static void _readTerminal() {
     termreg_t* terminal = (termreg_t*)(TERM0ADDR);
-    memaddr* command = (memaddr*)terminal + 3;
+    memaddr* command = (memaddr*)terminal + 1;
     memaddr status;
 
     support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
@@ -133,7 +135,7 @@ static void _readTerminal() {
         unsigned int value = RECEIVECHAR | (((unsigned int)*msg) << 8);
         status = SYSCALL(DOIO, (int)command, (int)value, 0);
         if ((status & TERMSTATMASK) != CHARRECV) {
-            terminal->transm_status = ~status;
+            terminal->recv_status = ~status;
             break;
         }
         char_transmitted++;
