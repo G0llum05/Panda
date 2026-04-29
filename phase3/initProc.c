@@ -21,12 +21,10 @@ void test() {
     initSwapStructs();
 
     // Initialize shell state struct
-    // REVIEW: is it correct to rename processes from main to shell
-    // in user space?
     state_t shell_state;
     STST(&shell_state);
     shell_state.reg_sp = USERSTACKTOP;
-    // shell_state.pc_epc = (memaddr)shell;
+    shell_state.pc_epc = KUSEG;
     shell_state.status |= MSTATUS_MPIE_MASK | MSTATUS_MPP_U;
     shell_state.mie = MIE_ALL;
 
