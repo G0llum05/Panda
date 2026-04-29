@@ -35,11 +35,9 @@ void uTLB_RefillHandler() {
     // to use phase 2 structures and global variables.
     extern pcb_t* running_pcb;
     support_t* support_structure = running_pcb->p_supportStruct;
-    // VPI := Virtual Page Index
-    unsigned int vpi = (vpn - KUSEG) >> ENTRYHI_VPN_BIT;
-    pteEntry_t page_table = support_structure->sup_privatePgTbl[vpi];
-    setENTRYHI(page_table.pte_entryHI);
-    setENTRYLO(page_table.pte_entryLO);
+    pteEntry_t* page_table = &support_structure->sup_privatePgTbl[vpn];
+    setENTRYHI(page_table->pte_entryHI);
+    setENTRYLO(page_table->pte_entryLO);
     // REVIEW: should it be TLB Write Random or TLB Write Index?
     TLBWR();
     LDST((state_t*)BIOSDATAPAGE);
