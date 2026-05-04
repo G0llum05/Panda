@@ -25,7 +25,11 @@ void test() {
     // Initialize Swap Pool Table
     initSwapStructs();
     // Initialize shell state struct
-    // STST(&shell_state);
+
+    // TODO: generalize in execute before creating a new process
+    // Create support pool for active support structs
+    // Maintain a list of support structs for active processes
+
     const unsigned int ASID = 3 << (ENTRYHI_ASID_BIT);
     shell_state.reg_sp = USERSTACKTOP;
     shell_state.mie = MIE_ALL;
@@ -59,13 +63,10 @@ void test() {
     SET_ENTRYHI(31, 0xBFFFF << ENTRYHI_VPN_BIT);
     SET_ENTRYLO(31, DIRTYON);
 
-    //  SET entryLO dirty
-
     // Create the shell
     SYSCALL(CREATEPROCESS, (int)&shell_state, PROCESS_PRIO_LOW,
             (int)&shell_support);
 
-    klog_print("P");
     // master_semaphore.P() to start shell
     SYSCALL(PASSEREN, (int)&master_semaphore, 0, 0);
 
