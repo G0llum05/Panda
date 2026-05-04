@@ -16,6 +16,8 @@ struct list_head ready_queue;
 int device_semaphores[SEMDEVLEN];
 int pseudo_clock_semaphore;
 
+void uTLB_RefillHandler();
+
 int main() {
     INIT_LIST_HEAD(&ready_queue);
 
@@ -51,23 +53,6 @@ int main() {
     first_proc->p_s.status = MSTATUS_MPIE_MASK | MSTATUS_MPP_M;
     first_proc->p_s.pc_epc = (memaddr)test;
 
-    // extern void supportExceptionHandler();
-    // extern void pager();
-    // support_t test_support;
-    // test_support.sup_exceptContext[GENERALEXCEPT].stackPtr =
-    //     (memaddr)USERSTACKTOP;
-    // test_support.sup_exceptContext[GENERALEXCEPT].status |=
-    //     MSTATUS_MPIE_MASK | MSTATUS_MPP_U;
-    // test_support.sup_exceptContext[GENERALEXCEPT].pc =
-    //     (memaddr)supportExceptionHandler;
-    // test_support.sup_exceptContext[PGFAULTEXCEPT].stackPtr =
-    //     (memaddr)USERSTACKTOP;
-    // test_support.sup_exceptContext[PGFAULTEXCEPT].status |=
-    //     MSTATUS_MPIE_MASK | MSTATUS_MPP_U;
-    // test_support.sup_exceptContext[PGFAULTEXCEPT].pc =
-    //     (memaddr)supportExceptionHandler;
-
-    // first_proc->p_supportStruct = &test_support;
     RAMTOP(first_proc->p_s.reg_sp);
 
     scheduler();

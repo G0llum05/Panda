@@ -29,18 +29,27 @@ void initSwapStructs() {
 
 // Spec 3
 void uTLB_RefillHandler() {
+    setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
     state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
-    unsigned int vpn = ENTRYHI_GET_VPN(cpu_state->entry_hi);
+    unsigned int vpi = ENTRYHI_GET_VPN(cpu_state->entry_hi);
     // Spec 3#Technical Point: The refill handler is allowed
     // to use phase 2 structures and global variables.
     extern pcb_t* running_pcb;
+    if (!running_pcb)
+        PANIC();
     support_t* support_structure = running_pcb->p_supportStruct;
-    pteEntry_t* page_table = &support_structure->sup_privatePgTbl[vpn];
-    setENTRYHI(page_table->pte_entryHI);
-    setENTRYLO(page_table->pte_entryLO);
+    if (!support_structure)
+        PANIC();
+    pteEntry_t* page_table_entry = &support_structure->sup_privatePgTbl[vpi];
+    if (!page_table_entry)
+        PANIC();
+    setENTRYHI(page_table_entry->pte_entryHI);
+    setENTRYLO(page_table_entry->pte_entryLO);
     // REVIEW: should it be TLB Write Random or TLB Write Index?
     TLBWR();
-    LDST((state_t*)BIOSDATAPAGE);
+    setSTATUS(getSTATUS() | MSTATUS_MIE_MASK);
+    /* cpu_state->pc_epc -= 4; */
+    LDST((state_t*)cpu_state);
 }
 
 /*
@@ -121,6 +130,7 @@ void pager() {
 
     // Step 9
     // Load missing page into memory
+    // REVIEW: is missing_page index or to be transformed into an address?
     dev_addr->data0 = missing_page; // REVIEW: input? Domain: flash address
     dev_addr->data1 = swap_frame;   // REVIEW: output? Co-Dom: physical mem
 
