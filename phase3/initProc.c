@@ -1,8 +1,5 @@
 #include "headers/initProc.h"
 #include "../headers/const.h"
-#include "../headers/types.h"
-#include "../phase2/headers/klog.h"
-#include "../testers/h/string.h"
 #include "headers/sysSupport.h"
 #include "headers/vmSupport.h"
 #include "uriscv/cpu.h"
@@ -19,53 +16,32 @@ unsigned int master_semaphore = 0;
 unsigned int device_mutex[FLASHDEVICES + TERMINALDEVICES];
 
 // Instatiator process
-state_t shell_state;
-support_t shell_support;
 void test() {
     // Initialize Swap Pool Table
     initSwapStructs();
-    // Initialize shell state struct
 
-    // TODO: generalize in execute before creating a new process
-    // Create support pool for active support structs
-    // Maintain a list of support structs for active processes
+    // Initiliaze allocated supports list
+    initSupportPool();
 
-    const unsigned int ASID = 3 << (ENTRYHI_ASID_BIT);
+    // Setup state
+    const unsigned int shellASID = 3;
+    state_t shell_state; // REVIEW(crit): enough lifetime?
     shell_state.reg_sp = USERSTACKTOP;
     shell_state.mie = MIE_ALL;
     shell_state.pc_epc = (memaddr)UPROCSTARTADDR;
     shell_state.status |= MSTATUS_MPIE_MASK;
-    shell_state.entry_hi = ASID;
-    // Initialize shell support struct
-    shell_support.sup_exceptContext[GENERALEXCEPT].stackPtr =
-        (memaddr)&shell_support.sup_stackGen[499];
-    shell_support.sup_exceptContext[GENERALEXCEPT].status |= MSTATUS_MPP_M;
-    shell_support.sup_exceptContext[GENERALEXCEPT].pc =
-        (memaddr)supportExceptionHandler;
-    shell_support.sup_exceptContext[PGFAULTEXCEPT].stackPtr =
-        (memaddr)&shell_support.sup_stackTLB[499];
-    shell_support.sup_exceptContext[PGFAULTEXCEPT].status |= MSTATUS_MPP_M;
-    shell_support.sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)pager;
-    shell_support.sup_asid = 3;
+    shell_state.entry_hi = shellASID << ENTRYHI_ASID_BIT;
 
-    // NOTE: Don't move this define
-#define SET_ENTRYHI(i, x) shell_support.sup_privatePgTbl[(i)].pte_entryHI |= (x)
-#define SET_ENTRYLO(i, x) shell_support.sup_privatePgTbl[(i)].pte_entryLO |= (x)
+    // Initialize shell state struct
+    support_t* shell_support = allocSupportStruct();
+    if (!shell_support)
+        PANIC();
 
-    for (unsigned int i = 0; i < USERPGTBLSIZE - 1; i++) {
-        // NOTE: flash x -> asid x+1
-        SET_ENTRYHI(i, KUSEG + (i << ENTRYHI_VPN_BIT));
-        SET_ENTRYHI(i, ASID);
-        SET_ENTRYLO(i, DIRTYON);
-    }
-    // NOTE: cf. 2.1
-    SET_ENTRYHI(31, ASID);
-    SET_ENTRYHI(31, 0xBFFFF << ENTRYHI_VPN_BIT);
-    SET_ENTRYLO(31, DIRTYON);
+    initiliazeSupport(shell_support, shellASID);
 
     // Create the shell
     SYSCALL(CREATEPROCESS, (int)&shell_state, PROCESS_PRIO_LOW,
-            (int)&shell_support);
+            (int)shell_support);
 
     // master_semaphore.P() to start shell
     SYSCALL(PASSEREN, (int)&master_semaphore, 0, 0);

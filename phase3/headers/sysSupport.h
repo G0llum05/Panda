@@ -1,6 +1,8 @@
 #ifndef SYSSUPPORT_H
 #define SYSSUPPORT_H
 
+#include "../../headers/types.h"
+
 #define TERM0ADDR 0x10000254
 #define TERMSTATMASK 0xFF
 
@@ -10,5 +12,6 @@
 
 void supportExceptionHandler();
 void programTrapHandler();
+void initiliazeSupport(support_t* support, unsigned int asid);
 
 #endif

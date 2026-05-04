@@ -10,6 +10,46 @@
 #include <uriscv/liburiscv.h>
 #include <uriscv/types.h>
 
+support_t supports[8];
+struct list_head supportsFree;
+
+// Initialize the support struct free list (call once at startup)
+void initSupportPool() {
+    INIT_LIST_HEAD(&supportsFree);
+    for (int i = 0; i < 8; i++) {
+        INIT_LIST_HEAD(&supports[i].s_list);
+        list_add_tail(&supports[i].s_list, &supportsFree);
+    }
+}
+
+// Get a free support struct from the pool, or NULL if none available
+support_t* allocSupportStruct() {
+    if (list_empty(&supportsFree))
+        return NULL;
+    struct list_head* node = supportsFree.next;
+    list_del(node);
+    support_t* sup = container_of(node, support_t, s_list);
+    INIT_LIST_HEAD(&sup->s_list);
+    return sup;
+}
+
+// Return a used support struct to the free pool
+void freeSupportStruct(support_t* sup) {
+    list_del(&sup->s_list);
+    INIT_LIST_HEAD(&sup->s_list);
+    list_add_tail(&sup->s_list, &supportsFree);
+}
+
+// Is the pool empty?
+int isSupportPoolEmpty() { return list_empty(&supportsFree); }
+
+// Utility to get Nth support in the pool (for debug/inspection)
+/* support_t* getSupportStruct(unsigned int idx) { */
+/*     if (idx >= 8) */
+/*         return NULL; */
+/*     return &supports[idx]; */
+/* } */
+
 // Spec 5.4
 static unsigned int frame_to_pick = 0;
 
@@ -39,7 +79,7 @@ void uTLB_RefillHandler() {
     pteEntry_t* page_table_entry = &support_structure->sup_privatePgTbl[vpi];
     setENTRYHI(page_table_entry->pte_entryHI);
     setENTRYLO(page_table_entry->pte_entryLO);
-    // REVIEW: should it be TLB Write Random or TLB Write Index?
+    // TODO: setup smarter system as per specs
     TLBWR();
     // setSTATUS(getSTATUS() | MSTATUS_MIE_MASK);
     /* cpu_state->pc_epc -= 4; */
@@ -64,7 +104,6 @@ void pager() {
     unsigned int cause =
         support_structure->sup_exceptState[PGFAULTEXCEPT].cause;
 
-    // REVIEW:
     // If cause == TLB_MOD the supportExceptionHandler defaults to a program
     // trap. See sysSupport.c for more details.
     if (cause == EXC_MOD) {
@@ -75,6 +114,8 @@ void pager() {
     SYSCALL(PASSEREN, (unsigned int)&swap_pool_mutex, 0, 0);
 
     // Step 5 - Missing page to load
+
+    // NOTE: VPN is an index
     unsigned int missing_page = ENTRYHI_GET_VPN(
         support_structure->sup_exceptState[PGFAULTEXCEPT].entry_hi);
 
@@ -124,7 +165,6 @@ void pager() {
 
     // Step 9
     // Load missing page into memory
-    // REVIEW: is missing_page index or to be transformed into an address?
     dev_addr->data0 = missing_page; // REVIEW: input? Domain: flash address
     dev_addr->data1 = swap_frame;   // REVIEW: output? Co-Dom: physical mem
 
@@ -174,9 +214,9 @@ void pager() {
 }
 
 static void _handleStatus(unsigned int* status_code) {
+    // TODO(clean): refactor with `if`
     switch (*status_code) {
     case READY:
-        // TODO: see what to do in these cases
         break;
     default:
         SYSCALL(VERHOGEN, (unsigned int)&swap_pool_mutex, 0, 0);

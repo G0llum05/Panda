@@ -1,7 +1,6 @@
 #include "headers/sysSupport.h"
 #include "../headers/const.h"
 #include "../headers/types.h"
-#include "../phase2/headers/klog.h"
 #include "../testers/h/tconst.h"
 #include "headers/initProc.h"
 #include "headers/vmSupport.h"
@@ -15,6 +14,8 @@ static void _terminate();
 static void _writeTerminal();
 static void _readTerminal();
 static void _execute();
+
+// TODO(big): REWRITE SYSCALLS IN KERNEL MODE
 
 void supportExceptionHandler() {
     // REVIEW: does this function automatically get the
@@ -148,9 +149,42 @@ static void _readTerminal() {
     SYSCALL(VERHOGEN, (int)&device_mutex[TERMINALOUTPUT], 0, 0);
 }
 
+void initiliazeSupport(support_t* support, unsigned int asid) {
+    const unsigned int shiftedASID = asid << (ENTRYHI_ASID_BIT);
+
+    // Initialize shell support struct
+    context_t* context = support->sup_exceptContext;
+    context[GENERALEXCEPT].stackPtr = (memaddr)&support->sup_stackGen[499];
+    context[GENERALEXCEPT].status |= MSTATUS_MPP_M;
+    context[GENERALEXCEPT].pc = (memaddr)supportExceptionHandler;
+    context[PGFAULTEXCEPT].stackPtr = (memaddr)&support->sup_stackTLB[499];
+    context[PGFAULTEXCEPT].status |= MSTATUS_MPP_M;
+    context[PGFAULTEXCEPT].pc = (memaddr)pager;
+    support->sup_asid = asid;
+
+    for (unsigned int i = 0; i < USERPGTBLSIZE; i++) {
+        pteEntry_t* entry = &support->sup_privatePgTbl[i];
+        // NOTE: flash x -> asid x+1
+        // NOTE: for ternary op see 2.1
+        // TODO(clean): factor out ENTRYHI_VPN_OUT
+        entry->pte_entryHI |= i == 31 ? 0xBFFFF << ENTRYHI_VPN_BIT
+                                      : KUSEG + (i << ENTRYHI_VPN_BIT);
+        entry->pte_entryHI |= shiftedASID;
+        entry->pte_entryLO |= DIRTYON;
+    }
+}
+
 static void _execute() {
     support_t* shell_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
-    unsigned int asid = shell_support->sup_exceptState[GENERALEXCEPT].reg_a1;
+    state_t* state = &shell_support->sup_exceptState[GENERALEXCEPT];
+
+    state->reg_sp = USERSTACKTOP;
+    state->mie = MIE_ALL;
+    state->pc_epc = (memaddr)UPROCSTARTADDR;
+    state->status |= MSTATUS_MPIE_MASK;
+    /* state->entry_hi = shiftedASID; */
+
+    initiliazeSupport(shell_support, state->reg_a1);
 
     SYSCALL(CREATEPROCESS, 0, PROCESS_PRIO_HIGH, 0);
 

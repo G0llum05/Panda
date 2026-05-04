@@ -1,6 +1,8 @@
 #ifndef VMSUPPORT_H
 #define VMSUPPORT_H
 
+#include "../../headers/types.h"
+
 // NOTE: Bits are zero-indexed
 #define SETBITOFF(variable, bit) (variable = (variable) & ~(1 << (bit)))
 #define SETBITON(variable, bit) (variable = (variable) | (1 << (bit)))
@@ -15,5 +17,10 @@ void initSwapStructs();
 
 // Handles all TLB-related exceptions
 void pager();
+
+void initSupportPool();
+support_t* allocSupportStruct();
+void freeSupportStruct(support_t* sup);
+int isSupportPoolEmpty();
 
 #endif
