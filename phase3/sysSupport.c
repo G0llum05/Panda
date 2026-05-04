@@ -22,7 +22,8 @@ void supportExceptionHandler() {
     // It is important, otherwise we don't know where
     // to route the exception in the switch.
     support_t* support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
-    unsigned int cause = support->sup_exceptState[GENERALEXCEPT].cause;
+    unsigned int cause =
+        support->sup_exceptState[GENERALEXCEPT].cause & CAUSE_EXCCODE_MASK;
 
     switch (cause) {
     case EXC_TLBL ... EXC_UTLBS: // never?
