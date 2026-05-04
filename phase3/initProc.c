@@ -19,11 +19,12 @@ unsigned int master_semaphore = 0;
 unsigned int device_mutex[FLASHDEVICES + TERMINALDEVICES];
 
 // Instatiator process
+state_t shell_state;
+support_t shell_support;
 void test() {
     // Initialize Swap Pool Table
     initSwapStructs();
     // Initialize shell state struct
-    state_t shell_state;
     STST(&shell_state);
     shell_state.reg_sp = USERSTACKTOP;
     shell_state.pc_epc = (memaddr)UPROCSTARTADDR;
@@ -31,7 +32,6 @@ void test() {
     shell_state.mie = MIE_ALL;
 
     // Initialize shell support struct
-    support_t shell_support;
     shell_support.sup_exceptContext[GENERALEXCEPT].stackPtr =
         (memaddr)KERNELSTACK;
     shell_support.sup_exceptContext[GENERALEXCEPT].status |=
@@ -45,19 +45,17 @@ void test() {
     shell_support.sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)pager;
 
     // NOTE: Don't move this define
-#define SET_ENTRYHI(i, x)                                                      \
-    shell_support.sup_privatePgTbl[(i)].pte_entryHI |= (x);
+#define SET_ENTRYHI(i, x) shell_support.sup_privatePgTbl[(i)].pte_entryHI |= (x)
 
-    // FIXME: to mask or not to mask?
-    const unsigned int ASID = (3 << (ENTRYHI_ASID_BIT - 1)) & ENTRYHI_ASID_MASK;
-    for (int i = 0; i < USERPGTBLSIZE - 1; i++) {
+    const unsigned int ASID = 3 << (ENTRYHI_ASID_BIT);
+    for (unsigned int i = 0; i < USERPGTBLSIZE - 1; i++) {
         // NOTE: flash x -> asid x+1
+        SET_ENTRYHI(i, KUSEG + (i << ENTRYHI_VPN_BIT));
         SET_ENTRYHI(i, ASID);
-        SET_ENTRYHI(i, (KUSEG + i) << ENTRYHI_VPN_BIT); // TODO: refactor macro
     }
     // NOTE: cf. 2.1
     SET_ENTRYHI(31, ASID);
-    SET_ENTRYHI(31, 0xBFFFF << ENTRYHI_VPN_BIT); // TODO: refactor macro
+    SET_ENTRYHI(31, 0xBFFFF << ENTRYHI_VPN_BIT);
 
     // Create the shell
     SYSCALL(CREATEPROCESS, (int)&shell_state, PROCESS_PRIO_LOW,
