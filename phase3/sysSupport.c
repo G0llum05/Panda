@@ -4,6 +4,7 @@
 #include "../testers/h/tconst.h"
 #include "headers/initProc.h"
 #include "headers/vmSupport.h"
+#include "uriscv/const.h"
 #include "uriscv/cpu.h"
 #include "uriscv/liburiscv.h"
 #include "uriscv/types.h"
@@ -18,10 +19,6 @@ static void _execute();
 // TODO(big): REWRITE SYSCALLS IN KERNEL MODE
 
 void supportExceptionHandler() {
-    // REVIEW: does this function automatically get the
-    // cause from the correct exception state?
-    // It is important, otherwise we don't know where
-    // to route the exception in the switch.
     support_t* support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
     unsigned int cause =
         support->sup_exceptState[GENERALEXCEPT].cause & CAUSE_EXCCODE_MASK;
@@ -31,7 +28,7 @@ void supportExceptionHandler() {
         pager();
         break;
 
-    // REVIEW: Environment Calls in Machine mode should not be
+    // NOTE: Environment Calls in Machine mode should not be
     // processed by the support level exception handler
     case EXC_ECU:
         _supportSyscallHandler();
@@ -57,7 +54,7 @@ static void _supportSyscallHandler() {
     // Increase PC value and go to next instruction
     process_support->sup_exceptState[GENERALEXCEPT].pc_epc += 4;
 
-    if (syscall_code > 0 && (mode == MSTATUS_MPP_U)) {
+    if (syscall_code > 0 && (mode == MSTATUS_MPP_M)) {
         switch (syscall_code) {
         case (TERMINATE):
             _terminate();
@@ -80,7 +77,19 @@ static void _supportSyscallHandler() {
     programTrapHandler();
 }
 
-static void _terminate() { SYSCALL(TERMPROCESS, 0, 0, 0); }
+static void _terminate() {
+    support_t* current_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
+
+    // The process should always have a support structure
+    if (current_support != NULL) {
+        if (current_support->sup_asid == SHELLASID) {
+            SYSCALL(VERHOGEN, (memaddr)&master_semaphore, 0, 0);
+        } else {
+            SYSCALL(VERHOGEN, (memaddr)&shell_mutex, 0, 0);
+        }
+    }
+    SYSCALL(TERMPROCESS, 0, 0, 0);
+}
 
 static void _writeTerminal() {
     termreg_t* terminal = (termreg_t*)(TERM0ADDR);
@@ -94,8 +103,8 @@ static void _writeTerminal() {
     int char_transmitted = 0;
 
     // REVIEW:
-    // Spec 7.2: It is an error to write to a terminal device from an address
-    // outside of the requesting U-proc’s logical address space
+    // Spec 7.2: It is an error to write to a terminal device from an
+    // address outside of the requesting U-proc’s logical address space
     if (((memaddr)msg < KUSEG) && (char_number < 0 || char_number > 128))
         SYSCALL(TERMPROCESS, 0, 0, 0);
 
@@ -128,8 +137,8 @@ static void _readTerminal() {
     int char_transmitted = 0;
 
     // REVIEW:
-    // Spec 7.3: It is an error to write to a terminal device from an address
-    // outside of the requesting U-proc’s logical address space
+    // Spec 7.3: It is an error to write to a terminal device from an
+    // address outside of the requesting U-proc’s logical address space
 
     SYSCALL(PASSEREN, (int)&device_mutex[TERMINALOUTPUT], 0, 0);
 
@@ -149,7 +158,7 @@ static void _readTerminal() {
     SYSCALL(VERHOGEN, (int)&device_mutex[TERMINALOUTPUT], 0, 0);
 }
 
-void initiliazeSupport(support_t* support, unsigned int asid) {
+void initializeSupport(support_t* support, unsigned int asid) {
     const unsigned int shiftedASID = asid << (ENTRYHI_ASID_BIT);
 
     // Initialize shell support struct
@@ -180,7 +189,7 @@ static void _execute() {
 
     setState(state, state->reg_a1);
 
-    initiliazeSupport(shell_support, state->reg_a1);
+    initializeSupport(shell_support, state->reg_a1);
 
     SYSCALL(CREATEPROCESS, 0, PROCESS_PRIO_HIGH, 0);
 

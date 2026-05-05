@@ -12,6 +12,6 @@
 
 void supportExceptionHandler();
 void programTrapHandler();
-void initiliazeSupport(support_t* support, unsigned int asid);
+void initializeSupport(support_t* support, unsigned int asid);
 
 #endif

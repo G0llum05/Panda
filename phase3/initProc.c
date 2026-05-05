@@ -2,7 +2,6 @@
 #include "../headers/const.h"
 #include "headers/sysSupport.h"
 #include "headers/vmSupport.h"
-#include "uriscv/cpu.h"
 #include "uriscv/liburiscv.h"
 
 void* swap_pool = (void*)FLASHPOOLSTART;
@@ -24,21 +23,20 @@ void test() {
     initSupportPool();
 
     // Setup state
-    const unsigned int shellASID = 3;
     // NOTE: shell_state is always valid.
     // 1. The test process terminates only when the shell
     // does too, so shell_state is always a valid reference.
     // 2. Even if (1) was not the case, _createProcess() saves
     // the new process state in running_pcb->p_s.
     state_t shell_state;
-    setState(&shell_state, shellASID);
+    setState(&shell_state, SHELLASID);
 
     // Initialize shell state struct
     support_t* shell_support = allocSupportStruct();
     if (!shell_support)
         PANIC();
 
-    initiliazeSupport(shell_support, shellASID);
+    initializeSupport(shell_support, SHELLASID);
 
     // Create the shell
     SYSCALL(CREATEPROCESS, (int)&shell_state, PROCESS_PRIO_LOW,

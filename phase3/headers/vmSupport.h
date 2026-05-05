@@ -12,6 +12,18 @@
 // This bit is set to zero if the TLBP was a success
 #define PROBEBIT 0x80000000
 
+#define SHELLASID 1
+#define FIBEIGHTASID 2
+#define ECHOASID 3
+#define FIBELEVENASID 4
+#define UNAMEASID 5
+#define DATEASID 6
+#define SLASID 7
+#define CALCASID 8
+
+unsigned int shell_mutex;
+unsigned int master_semaphore;
+
 // Small snippet of reusable state assignment logic
 void setState(state_t* state, unsigned int asid);
 
