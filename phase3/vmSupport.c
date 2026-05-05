@@ -10,8 +10,31 @@
 #include <uriscv/liburiscv.h>
 #include <uriscv/types.h>
 
-support_t supports[8];
-struct list_head supportsFree;
+// Spec 10: create allocate, deallocate methods to manipulate
+// static structures.
+
+/*
+    Flash device / ASID associations are in the config file for uriscv.
+    "flash0": "testers/shell.uriscv",
+    "flash1": "testers/fibEight.uriscv",
+    "flash2": "testers/echo.uriscv",
+    "flash3": "testers/fibEleven.uriscv",
+    "flash4": "testers/uname.uriscv",
+    "flash5": "testers/date.uriscv",
+    "flash6": "testers/sl.uriscv",
+    "flash7": "testers/calc.uriscv"
+*/
+
+static support_t supports[UPROCMAX];
+static struct list_head supportsFree;
+
+void setState(state_t* state, unsigned int asid) {
+    state->reg_sp = USERSTACKTOP;
+    state->mie = MIE_ALL;
+    state->pc_epc = (memaddr)UPROCSTARTADDR;
+    state->status |= MSTATUS_MPIE_MASK;
+    state->entry_hi = asid << ENTRYHI_ASID_BIT;
+}
 
 // Initialize the support struct free list (call once at startup)
 void initSupportPool() {
@@ -43,19 +66,12 @@ void freeSupportStruct(support_t* sup) {
 // Is the pool empty?
 int isSupportPoolEmpty() { return list_empty(&supportsFree); }
 
-// Utility to get Nth support in the pool (for debug/inspection)
-/* support_t* getSupportStruct(unsigned int idx) { */
-/*     if (idx >= 8) */
-/*         return NULL; */
-/*     return &supports[idx]; */
-/* } */
-
 // Spec 5.4
 static unsigned int frame_to_pick = 0;
 
 // Spec 12.2: "[...] the Swap Pool table is local to this module."
 static swap_t swap_pool_table[SWAPPOOLSIZE];
-unsigned int swap_pool_mutex = 1;
+static unsigned int swap_pool_mutex = 1;
 
 static void _handleStatus(unsigned int*);
 
@@ -69,7 +85,6 @@ void initSwapStructs() {
 
 // Spec 3
 void uTLB_RefillHandler() {
-    // setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
     state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
     unsigned int vpi = ENTRYHI_GET_VPN(cpu_state->entry_hi);
     // Spec 3#Technical Point: The refill handler is allowed
@@ -81,20 +96,8 @@ void uTLB_RefillHandler() {
     setENTRYLO(page_table_entry->pte_entryLO);
     // TODO: setup smarter system as per specs
     TLBWR();
-    // setSTATUS(getSTATUS() | MSTATUS_MIE_MASK);
-    /* cpu_state->pc_epc -= 4; */
     LDST((state_t*)cpu_state);
 }
-
-/*
-    Spec 5.3:
-
-    Updating the page table of a process requires
-    also updating the associated tlb entry in the tlb.
-    Either:
-    1. Delete all the TLB
-    2. Probe the TLB and rewrite the entry if present
-*/
 
 void pager() {
     // Step 1
@@ -214,11 +217,7 @@ void pager() {
 }
 
 static void _handleStatus(unsigned int* status_code) {
-    // TODO(clean): refactor with `if`
-    switch (*status_code) {
-    case READY:
-        break;
-    default:
+    if (*status_code != READY) {
         SYSCALL(VERHOGEN, (unsigned int)&swap_pool_mutex, 0, 0);
         programTrapHandler();
     }

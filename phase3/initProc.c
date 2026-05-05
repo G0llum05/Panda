@@ -25,12 +25,13 @@ void test() {
 
     // Setup state
     const unsigned int shellASID = 3;
-    state_t shell_state; // REVIEW(crit): enough lifetime?
-    shell_state.reg_sp = USERSTACKTOP;
-    shell_state.mie = MIE_ALL;
-    shell_state.pc_epc = (memaddr)UPROCSTARTADDR;
-    shell_state.status |= MSTATUS_MPIE_MASK;
-    shell_state.entry_hi = shellASID << ENTRYHI_ASID_BIT;
+    // NOTE: shell_state is always valid.
+    // 1. The test process terminates only when the shell
+    // does too, so shell_state is always a valid reference.
+    // 2. Even if (1) was not the case, _createProcess() saves
+    // the new process state in running_pcb->p_s.
+    state_t shell_state;
+    setState(&shell_state, shellASID);
 
     // Initialize shell state struct
     support_t* shell_support = allocSupportStruct();

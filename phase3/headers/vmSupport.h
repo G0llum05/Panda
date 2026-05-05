@@ -12,6 +12,9 @@
 // This bit is set to zero if the TLBP was a success
 #define PROBEBIT 0x80000000
 
+// Small snippet of reusable state assignment logic
+void setState(state_t* state, unsigned int asid);
+
 // Initializes swap table structures
 void initSwapStructs();
 

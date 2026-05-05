@@ -178,11 +178,7 @@ static void _execute() {
     support_t* shell_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
     state_t* state = &shell_support->sup_exceptState[GENERALEXCEPT];
 
-    state->reg_sp = USERSTACKTOP;
-    state->mie = MIE_ALL;
-    state->pc_epc = (memaddr)UPROCSTARTADDR;
-    state->status |= MSTATUS_MPIE_MASK;
-    /* state->entry_hi = shiftedASID; */
+    setState(state, state->reg_a1);
 
     initiliazeSupport(shell_support, state->reg_a1);
 
