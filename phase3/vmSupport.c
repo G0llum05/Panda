@@ -74,7 +74,7 @@ static unsigned int frame_to_pick = 0;
 static swap_t swap_pool_table[SWAPPOOLSIZE];
 static unsigned int swap_pool_mutex = 1;
 
-static void _handleStatus(unsigned int*);
+static void _handleStatus(unsigned int);
 
 // Spec 12.2: "The test function will now invoke [...] initSwapStructs
 // which will do the work of initializing the Swap Pool table."
@@ -136,7 +136,7 @@ void pager() {
     pteEntry_t* process_pte = swapp_entry->sw_pte;
     int flash_idx = support_structure->sup_asid - 1; // NOTE: flashNo + 1 = ASID
     dtpreg_t* dev_addr = (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, flash_idx);
-    unsigned int* status_code;
+    unsigned int status_code;
     memaddr swap_frame = ENTRYLO_GET_PFN(swapp_entry->sw_pte->pte_entryLO);
     if (process_asid != -1) { // A user process uses this frame
         setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
@@ -156,8 +156,7 @@ void pager() {
 
         trigger_mutex(PASSEREN, flash_idx);
 
-        status_code =
-            (unsigned int*)SYSCALL(DOIO, (int)dev_addr, FLASHWRITE, 0);
+        status_code = SYSCALL(DOIO, (int)dev_addr, FLASHWRITE, 0);
 
         trigger_mutex(VERHOGEN, flash_idx);
 
@@ -171,7 +170,7 @@ void pager() {
 
     trigger_mutex(PASSEREN, flash_idx);
 
-    status_code = (unsigned int*)SYSCALL(DOIO, (int)dev_addr, FLASHREAD, 0);
+    status_code = SYSCALL(DOIO, (unsigned int)dev_addr, FLASHREAD, 0);
 
     trigger_mutex(VERHOGEN, flash_idx);
 
@@ -211,8 +210,8 @@ void pager() {
     LDST(&support_structure->sup_exceptState[PGFAULTEXCEPT]);
 }
 
-static void _handleStatus(unsigned int* status_code) {
-    if (*status_code != READY) {
+static void _handleStatus(unsigned int status_code) {
+    if (status_code != READY) {
         SYSCALL(VERHOGEN, (unsigned int)&swap_pool_mutex, 0, 0);
         programTrapHandler();
     }
