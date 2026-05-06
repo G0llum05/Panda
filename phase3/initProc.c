@@ -8,29 +8,29 @@
 void* swap_pool = (void*)FLASHPOOLSTART;
 unsigned int shell_mutex = 0;
 unsigned int master_semaphore = 0;
+unsigned int support_mutex[FLASHDEVICES + TERMINALDEVICES];
 
 // Device mutex
 // Flash devices index 0-7
 // Terminal output device index 8
 // Terminal input device index 9
 void trigger_mutex(int code, int index) {
-    extern unsigned int device_semaphores[SEMDEVLEN];
     int sem_index = -1;
 
     // Calcolo dell'indice del semaforo
     if (index < FLASHDEVICES) {
-        sem_index = index + 8;
+        sem_index = index;
     } else if (index == TERMINALOUTPUT) {
-        sem_index = 32;
+        sem_index = 8;
     } else if (index == TERMINALINPUT) {
-        sem_index = 40;
+        sem_index = 9;
     }
     if (sem_index == -1) {
         klog_print("Capo capo capo! >:( \n"); // good error signaling
         return;
     }
     if (code == PASSEREN || code == VERHOGEN) {
-        SYSCALL(code, (int)&device_semaphores[sem_index], 0, 0);
+        SYSCALL(code, (int)&support_mutex[sem_index], 0, 0);
         return;
     }
     klog_print("Hey bôss! >:( \n"); // good error signaling
@@ -43,6 +43,11 @@ void test() {
 
     // Initiliaze allocated supports list
     initSupportPool();
+
+    // init mutex
+    for (int i = 0; i < FLASHDEVICES + TERMINALDEVICES; i++) {
+        support_mutex[i] = 1;
+    }
 
     // Setup state
     // NOTE: shell_state is always valid.
