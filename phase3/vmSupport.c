@@ -1,6 +1,7 @@
 #include "headers/vmSupport.h"
 #include "../headers/const.h"
 #include "../headers/types.h"
+#include "../phase2/headers/klog.h"
 #include "headers/initProc.h"
 #include "headers/sysSupport.h"
 #include "uriscv/arch.h"
@@ -133,8 +134,8 @@ void pager() {
     int process_asid = swapp_entry->sw_asid;
 
     pteEntry_t* process_pte = swapp_entry->sw_pte;
-    dtpreg_t* dev_addr =
-        (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, support_structure->sup_asid);
+    int flash_idx = support_structure->sup_asid - 1; // NOTE: flashNo + 1 = ASID
+    dtpreg_t* dev_addr = (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, flash_idx);
     unsigned int* status_code;
     memaddr swap_frame = ENTRYLO_GET_PFN(swapp_entry->sw_pte->pte_entryLO);
     if (process_asid != -1) { // A user process uses this frame
@@ -153,12 +154,12 @@ void pager() {
         // Save old frame
         dev_addr->data0 = swap_frame;
 
-        trigger_mutex(PASSEREN, support_structure->sup_asid);
+        trigger_mutex(PASSEREN, flash_idx);
 
         status_code =
             (unsigned int*)SYSCALL(DOIO, (int)dev_addr, FLASHWRITE, 0);
 
-        trigger_mutex(VERHOGEN, support_structure->sup_asid);
+        trigger_mutex(VERHOGEN, flash_idx);
 
         _handleStatus(status_code);
     }
@@ -168,11 +169,11 @@ void pager() {
     dev_addr->data0 = vpn;        // REVIEW: input? Domain: flash address
     dev_addr->data1 = swap_frame; // REVIEW: output? Co-Dom: physical mem
 
-    trigger_mutex(PASSEREN, support_structure->sup_asid);
+    trigger_mutex(PASSEREN, flash_idx);
 
     status_code = (unsigned int*)SYSCALL(DOIO, (int)dev_addr, FLASHREAD, 0);
 
-    trigger_mutex(VERHOGEN, support_structure->sup_asid);
+    trigger_mutex(VERHOGEN, flash_idx);
 
     _handleStatus(status_code);
 
