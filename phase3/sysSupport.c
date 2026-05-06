@@ -174,11 +174,13 @@ void initializeSupport(support_t* support, unsigned int asid) {
 
     for (unsigned int i = 0; i < USERPGTBLSIZE; i++) {
         pteEntry_t* entry = &support->sup_privatePgTbl[i];
-        // NOTE: flash x -> asid x+1
-        // NOTE: for ternary op see 2.1
-        // TODO(clean): factor out ENTRYHI_VPN_OUT
-        entry->pte_entryHI |= i == 31 ? 0xBFFFF << ENTRYHI_VPN_BIT
-                                      : KUSEG + (i << ENTRYHI_VPN_BIT);
+        // Spec 2.1: if the current page table is the last, then it's
+        // the stack and it should have memaddr 0xBFFF.F000
+        if (i != USERPGTBLSIZE - 1) {
+            entry->pte_entryHI = KUSEG + (i << ENTRYHI_VPN_BIT);
+        } else {
+            entry->pte_entryHI = (USERSTACKTOP - PAGESIZE) << ENTRYHI_VPN_BIT;
+        }
         entry->pte_entryHI |= shiftedASID;
         entry->pte_entryLO |= DIRTYON;
     }

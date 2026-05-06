@@ -2,6 +2,7 @@
 
 #include "h/string.h"
 #include "h/tconst.h"
+#include "uriscv/const.h"
 
 static void _exit() { SYSCALL(TERMINATE, 0, 0, 0); }
 
@@ -22,7 +23,7 @@ void main() {
     if (SYSCALL(WRITETERMINAL, (int)message, strlen(message), 0) < 0) {
         _exit();
     }
-    while (1) { // main loop
+    while (TRUE) { // main loop
         // read input
         const int ilen = SYSCALL(READTERMINAL, (int)ibuffer, 0, 0);
         if (ilen < 0)

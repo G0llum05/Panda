@@ -34,7 +34,6 @@ void scheduler() {
         setSTATUS(status);
         WAIT();
     } else {
-        _STEP();
         // This check is logically sound because time is
         // quantized using clock interrupts; if no process is
         // waiting for the clock or I/O then there's a deadlock.
