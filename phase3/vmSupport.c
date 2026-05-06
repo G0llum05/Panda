@@ -137,7 +137,9 @@ void pager() {
     int flash_idx = support_structure->sup_asid - 1; // NOTE: flashNo + 1 = ASID
     dtpreg_t* dev_addr = (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, flash_idx);
     unsigned int status_code;
-    memaddr swap_frame = ENTRYLO_GET_PFN(swapp_entry->sw_pte->pte_entryLO);
+    memaddr swap_frame_addr = FLASHPOOLSTART + frame_to_pick * PAGESIZE;
+    // Erroneous -> ENTRYLO_GET_PFN(swapp_entry->sw_pte->pte_entryLO);
+
     if (process_asid != -1) { // A user process uses this frame
         setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
         SETBITOFF(process_pte->pte_entryLO, ENTRYLO_VALID_BIT);
@@ -152,7 +154,7 @@ void pager() {
         setSTATUS(getSTATUS() | MSTATUS_MIE_MASK);
 
         // Save old frame
-        dev_addr->data0 = swap_frame;
+        dev_addr->data0 = swap_frame_addr;
 
         trigger_mutex(PASSEREN, flash_idx);
 
@@ -165,8 +167,8 @@ void pager() {
 
     // Step 9
     // Load missing page into memory
-    dev_addr->data0 = vpn;        // REVIEW: input? Domain: flash address
-    dev_addr->data1 = swap_frame; // REVIEW: output? Co-Dom: physical mem
+    dev_addr->data0 = vpn;             // REVIEW: input? Domain: flash address
+    dev_addr->data1 = swap_frame_addr; // REVIEW: output? Co-Dom: physical mem
 
     trigger_mutex(PASSEREN, flash_idx);
 
@@ -186,7 +188,7 @@ void pager() {
 
     process_pte->pte_entryLO &= ~ENTRYLO_PFN_MASK;
     SETBITON(process_pte->pte_entryLO, ENTRYLO_VALID_BIT);
-    process_pte->pte_entryLO |= (swap_frame & ENTRYLO_PFN_MASK);
+    process_pte->pte_entryLO |= (swap_frame_addr & ENTRYLO_PFN_MASK);
 
     // Step 12
 
