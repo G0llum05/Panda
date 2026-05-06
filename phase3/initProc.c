@@ -10,9 +10,25 @@ unsigned int master_semaphore = 0;
 
 // Device mutex
 // Flash devices index 0-7
-// Terminal input device index 8
-// Terminal output device index 9
-unsigned int device_mutex[FLASHDEVICES + TERMINALDEVICES];
+// Terminal output device index 8
+// Terminal input device index 9
+void trigger_mutex(int code, int index) {
+    extern unsigned int device_semaphores[SEMDEVLEN];
+    int sem_index = -1;
+
+    // Calcolo dell'indice del semaforo
+    if (index < FLASHDEVICES) {
+        sem_index = index + 8;
+    } else if (index == TERMINALOUTPUT) {
+        sem_index = 32;
+    } else if (index == TERMINALINPUT) {
+        sem_index = 40;
+    }
+
+    if (sem_index != -1 && (code == PASSEREN || code == VERHOGEN)) {
+        SYSCALL(code, (int)&device_semaphores[sem_index], 0, 0);
+    }
+}
 
 // Instatiator process
 void test() {

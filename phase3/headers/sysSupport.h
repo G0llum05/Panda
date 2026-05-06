@@ -7,8 +7,8 @@
 #define TERMSTATMASK 0xFF
 
 // Terminal devices mutex index in device_mutex
-#define TERMINALINPUT 8
-#define TERMINALOUTPUT 9
+#define TERMINALOUTPUT 8
+#define TERMINALINPUT 9
 
 void supportExceptionHandler();
 void programTrapHandler();

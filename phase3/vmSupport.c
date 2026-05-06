@@ -154,14 +154,12 @@ void pager() {
         // Save old frame
         dev_addr->data0 = swap_frame;
 
-        SYSCALL(PASSEREN,
-                (unsigned int)&device_mutex[support_structure->sup_asid], 0, 0);
+        trigger_mutex(PASSEREN, support_structure->sup_asid);
 
         status_code =
             (unsigned int*)SYSCALL(DOIO, (int)dev_addr, FLASHWRITE, 0);
 
-        SYSCALL(VERHOGEN,
-                (unsigned int)&device_mutex[support_structure->sup_asid], 0, 0);
+        trigger_mutex(VERHOGEN, support_structure->sup_asid);
 
         _handleStatus(status_code);
     }
@@ -171,13 +169,11 @@ void pager() {
     dev_addr->data0 = missing_page; // REVIEW: input? Domain: flash address
     dev_addr->data1 = swap_frame;   // REVIEW: output? Co-Dom: physical mem
 
-    SYSCALL(PASSEREN, (unsigned int)&device_mutex[support_structure->sup_asid],
-            0, 0);
+    trigger_mutex(PASSEREN, support_structure->sup_asid);
 
     status_code = (unsigned int*)SYSCALL(DOIO, (int)dev_addr, FLASHREAD, 0);
 
-    SYSCALL(VERHOGEN, (unsigned int)&device_mutex[support_structure->sup_asid],
-            0, 0);
+    trigger_mutex(VERHOGEN, support_structure->sup_asid);
 
     _handleStatus(status_code);
 

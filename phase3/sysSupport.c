@@ -109,7 +109,7 @@ static void _writeTerminal() {
     if (((memaddr)msg < KUSEG) && (char_number < 0 || char_number > 128))
         SYSCALL(TERMPROCESS, 0, 0, 0);
 
-    SYSCALL(PASSEREN, (int)&device_mutex[TERMINALINPUT], 0, 0);
+    trigger_mutex(PASSEREN, TERMINALINPUT);
 
     while (*msg != EOS) {
         unsigned int value = PRINTCHR | (((unsigned int)*msg) << 8);
@@ -124,7 +124,7 @@ static void _writeTerminal() {
 
     support_structure->sup_exceptState->reg_a0 = char_transmitted;
 
-    SYSCALL(VERHOGEN, (int)&device_mutex[TERMINALINPUT], 0, 0);
+    trigger_mutex(VERHOGEN, TERMINALINPUT);
 }
 
 static void _readTerminal() {
@@ -141,7 +141,7 @@ static void _readTerminal() {
     // Spec 7.3: It is an error to write to a terminal device from an
     // address outside of the requesting U-proc’s logical address space
 
-    SYSCALL(PASSEREN, (int)&device_mutex[TERMINALOUTPUT], 0, 0);
+    trigger_mutex(PASSEREN, TERMINALOUTPUT);
 
     while (*msg != EOS) {
         unsigned int value = RECEIVECHAR | (((unsigned int)*msg) << 8);
@@ -156,7 +156,7 @@ static void _readTerminal() {
 
     support_structure->sup_exceptState->reg_a0 = char_transmitted;
 
-    SYSCALL(VERHOGEN, (int)&device_mutex[TERMINALOUTPUT], 0, 0);
+    trigger_mutex(VERHOGEN, TERMINALOUTPUT);
 }
 
 void initializeSupport(support_t* support, unsigned int asid) {

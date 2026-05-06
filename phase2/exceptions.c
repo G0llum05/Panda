@@ -354,7 +354,8 @@ static void _getCPUTime() {
 }
 
 static void _clockWait() {
-    _reusablePasseren(GET_EXCEPTION_STATE_PTR(0), &pseudo_clock_semaphore);
+    _reusablePasseren(GET_EXCEPTION_STATE_PTR(0),
+                      &device_semaphores[PSEUDOCLOCKINDEX]);
 };
 
 static void _getSupportPtr() {
@@ -429,4 +430,6 @@ int isDevice(int* semAdd) {
 }
 
 // Procedure to check if a semaphore is the pseudo clock semaphore
-int isPseudoClock(int* semAdd) { return (semAdd == &pseudo_clock_semaphore); }
+int isPseudoClock(int* semAdd) {
+    return (semAdd == &device_semaphores[PSEUDOCLOCKINDEX]);
+}

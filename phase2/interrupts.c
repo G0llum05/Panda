@@ -97,7 +97,7 @@ static void _localTimerInterrupt() {
 static void _pseudoClockTick() {
     LDIT(PSECOND); // Set interval timer spec 7.3.1
     // spec 7.3.2
-    int* key = &pseudo_clock_semaphore;
+    int* key = &device_semaphores[PSEUDOCLOCKINDEX];
 
     while (headBlocked(key)) {
         pcb_t* proc = removeBlocked(key);

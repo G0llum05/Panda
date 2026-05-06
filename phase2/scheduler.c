@@ -1,5 +1,6 @@
 #include "headers/scheduler.h"
 
+#include "headers/klog.h"
 #include "uriscv/const.h"
 #include "uriscv/liburiscv.h"
 #include <uriscv/types.h>
@@ -33,7 +34,7 @@ void scheduler() {
         setSTATUS(status);
         WAIT();
     } else {
-
+        _STEP();
         // This check is logically sound because time is
         // quantized using clock interrupts; if no process is
         // waiting for the clock or I/O then there's a deadlock.
