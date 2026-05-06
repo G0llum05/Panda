@@ -80,6 +80,7 @@ static void _supportSyscallHandler() {
 static void _terminate() {
     support_t* current_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
 
+    extern unsigned int master_semaphore;
     // The process should always have a support structure
     if (current_support != NULL) {
         if (current_support->sup_asid == SHELLASID) {

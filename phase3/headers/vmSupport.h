@@ -21,9 +21,6 @@
 #define SLASID 7
 #define CALCASID 8
 
-unsigned int shell_mutex;
-unsigned int master_semaphore;
-
 // Small snippet of reusable state assignment logic
 void setState(state_t* state, unsigned int asid);
 
