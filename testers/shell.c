@@ -1,5 +1,6 @@
 #include <uriscv/liburiscv.h>
 
+#include "../phase2/headers/klog.h"
 #include "h/string.h"
 #include "h/tconst.h"
 #include "uriscv/const.h"
@@ -21,6 +22,7 @@ void main() {
     char ibuffer[256];
     char* message = "FUCK YOU\n";
     if (SYSCALL(WRITETERMINAL, (int)message, strlen(message), 0) < 0) {
+        klog_print("Error, I die.\n");
         _exit();
     }
     while (TRUE) { // main loop

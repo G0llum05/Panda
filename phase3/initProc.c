@@ -1,5 +1,6 @@
 #include "headers/initProc.h"
 #include "../headers/const.h"
+#include "../phase2/headers/klog.h"
 #include "headers/sysSupport.h"
 #include "headers/vmSupport.h"
 #include "uriscv/liburiscv.h"
@@ -24,10 +25,15 @@ void trigger_mutex(int code, int index) {
     } else if (index == TERMINALINPUT) {
         sem_index = 40;
     }
-
-    if (sem_index != -1 && (code == PASSEREN || code == VERHOGEN)) {
-        SYSCALL(code, (int)&device_semaphores[sem_index], 0, 0);
+    if (sem_index == -1) {
+        klog_print("Capo capo capo! >:( \n"); // good error signaling
+        return;
     }
+    if (code == PASSEREN || code == VERHOGEN) {
+        SYSCALL(code, (int)&device_semaphores[sem_index], 0, 0);
+        return;
+    }
+    klog_print("Hey bôss! >:( \n"); // good error signaling
 }
 
 // Instatiator process
@@ -55,6 +61,7 @@ void test() {
     initializeSupport(shell_support, SHELLASID);
 
     // Create the shell
+    // TODO: check return status
     SYSCALL(CREATEPROCESS, (int)&shell_state, PROCESS_PRIO_LOW,
             (int)shell_support);
 
