@@ -94,7 +94,6 @@ void uTLB_RefillHandler() {
     pteEntry_t* page_table_entry = &support_structure->sup_privatePgTbl[vpi];
     setENTRYHI(page_table_entry->pte_entryHI);
     setENTRYLO(page_table_entry->pte_entryLO);
-    // TODO: setup smarter system as per specs
     TLBWR();
     LDST((state_t*)cpu_state);
 }
@@ -119,7 +118,7 @@ void pager() {
     // Step 5 - Missing page to load
 
     // NOTE: VPN is an index
-    unsigned int missing_page = ENTRYHI_GET_VPN(
+    unsigned int vpn = ENTRYHI_GET_VPN(
         support_structure->sup_exceptState[PGFAULTEXCEPT].entry_hi);
 
     // Step 6-7-8
@@ -166,8 +165,8 @@ void pager() {
 
     // Step 9
     // Load missing page into memory
-    dev_addr->data0 = missing_page; // REVIEW: input? Domain: flash address
-    dev_addr->data1 = swap_frame;   // REVIEW: output? Co-Dom: physical mem
+    dev_addr->data0 = vpn;        // REVIEW: input? Domain: flash address
+    dev_addr->data1 = swap_frame; // REVIEW: output? Co-Dom: physical mem
 
     trigger_mutex(PASSEREN, support_structure->sup_asid);
 
@@ -179,9 +178,8 @@ void pager() {
 
     // Step 10
     process_asid = support_structure->sup_asid;
-    // REVIEW: should we update VPN in swap pool?
-    swapp_entry->sw_pageNo = missing_page;
-    process_pte = &support_structure->sup_privatePgTbl[missing_page];
+    swapp_entry->sw_pageNo = vpn;
+    process_pte = &support_structure->sup_privatePgTbl[vpn];
 
     // Step 11
     setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);

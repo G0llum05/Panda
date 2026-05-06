@@ -103,7 +103,6 @@ static void _writeTerminal() {
     int char_number = (int)support_structure->sup_exceptState->reg_a2;
     int char_transmitted = 0;
 
-    // REVIEW:
     // Spec 7.2: It is an error to write to a terminal device from an
     // address outside of the requesting U-proc’s logical address space
     if (((memaddr)msg < KUSEG) && (char_number < 0 || char_number > 128))
@@ -130,16 +129,18 @@ static void _writeTerminal() {
 static void _readTerminal() {
     termreg_t* terminal = (termreg_t*)(TERM0ADDR);
     memaddr* command = (memaddr*)terminal + 1;
-    memaddr status;
+    unsigned int status;
 
     support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
 
     char* msg = (char*)support_structure->sup_exceptState->reg_a1;
     int char_transmitted = 0;
 
-    // REVIEW:
     // Spec 7.3: It is an error to write to a terminal device from an
     // address outside of the requesting U-proc’s logical address space
+    if ((memaddr)msg < KUSEG) {
+        SYSCALL(TERMPROCESS, 0, 0, 0);
+    }
 
     trigger_mutex(PASSEREN, TERMINALOUTPUT);
 
@@ -187,12 +188,13 @@ void initializeSupport(support_t* support, unsigned int asid) {
 }
 
 static void _execute() {
-    support_t* shell_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
-    state_t* state = &shell_support->sup_exceptState[GENERALEXCEPT];
+    unsigned int asid = GET_EXCEPTION_STATE_PTR(0)->reg_a1;
+    state_t new_state;
+    support_t new_support;
 
-    setState(state, state->reg_a1);
+    setState(&new_state, asid);
 
-    initializeSupport(shell_support, state->reg_a1);
+    initializeSupport(&new_support, asid);
 
     SYSCALL(CREATEPROCESS, 0, PROCESS_PRIO_HIGH, 0);
 
