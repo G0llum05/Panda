@@ -4,7 +4,6 @@
 #include "../testers/h/tconst.h"
 #include "headers/initProc.h"
 #include "headers/vmSupport.h"
-#include "uriscv/const.h"
 #include "uriscv/cpu.h"
 #include "uriscv/liburiscv.h"
 #include "uriscv/types.h"
@@ -15,8 +14,6 @@ static void _terminate();
 static void _writeTerminal();
 static void _readTerminal();
 static void _execute();
-
-// TODO(big): REWRITE SYSCALLS IN KERNEL MODE
 
 void supportExceptionHandler() {
     support_t* support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
