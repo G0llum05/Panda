@@ -87,12 +87,13 @@ void initSwapStructs() {
 // Spec 3
 void uTLB_RefillHandler() {
     state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
-    unsigned int vpi = ENTRYHI_GET_VPN(cpu_state->entry_hi);
+    unsigned int vpn = ENTRYHI_GET_VPN(cpu_state->entry_hi);
     // Spec 3#Technical Point: The refill handler is allowed
     // to use phase 2 structures and global variables.
     extern pcb_t* running_pcb;
     support_t* support_structure = running_pcb->p_supportStruct;
-    pteEntry_t* page_table_entry = &support_structure->sup_privatePgTbl[vpi];
+    pteEntry_t* page_table_entry =
+        &support_structure->sup_privatePgTbl[vpn > 30 ? 31 : vpn];
     setENTRYHI(page_table_entry->pte_entryHI);
     setENTRYLO(page_table_entry->pte_entryLO);
     TLBWR();
@@ -118,9 +119,9 @@ void pager() {
 
     // Step 5 - Missing page to load
 
-    // NOTE: VPN is an index
     unsigned int vpn = ENTRYHI_GET_VPN(
         support_structure->sup_exceptState[PGFAULTEXCEPT].entry_hi);
+    unsigned int vpi = vpn > 30 ? 31 : vpn;
 
     // Step 6-7-8
 
@@ -130,15 +131,16 @@ void pager() {
     // policy. It uses a static variable modulo the size of
     // the swap pool to choose the next frame sequentially.
 
-    swap_t* swapp_entry = &swap_pool_table[frame_to_pick];
-    int process_asid = swapp_entry->sw_asid;
+    swap_t* swap_pte = &swap_pool_table[frame_to_pick];
+    int process_asid = swap_pte->sw_asid;
 
-    pteEntry_t* process_pte = swapp_entry->sw_pte;
+    pteEntry_t* process_pte = swap_pte->sw_pte;
     int flash_idx = support_structure->sup_asid - 1; // NOTE: flashNo + 1 = ASID
     dtpreg_t* dev_addr = (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, flash_idx);
+    memaddr commandp = (memaddr)&dev_addr->command;
     unsigned int status_code;
     memaddr swap_frame_addr = FLASHPOOLSTART + frame_to_pick * PAGESIZE;
-    // Erroneous -> ENTRYLO_GET_PFN(swapp_entry->sw_pte->pte_entryLO);
+    unsigned int block_idx = vpi + 1;
 
     if (process_asid != -1) { // A user process uses this frame
         setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
@@ -158,7 +160,10 @@ void pager() {
 
         trigger_mutex(PASSEREN, flash_idx);
 
-        status_code = SYSCALL(DOIO, (int)dev_addr, FLASHWRITE, 0);
+        // REVIEW: is page-block mapping 1-1?
+        // Block could be 1024, page is 4096
+        status_code =
+            SYSCALL(DOIO, (int)commandp, (block_idx << 8) | FLASHWRITE, 0);
 
         trigger_mutex(VERHOGEN, flash_idx);
 
@@ -167,12 +172,11 @@ void pager() {
 
     // Step 9
     // Load missing page into memory
-    dev_addr->data0 = vpn;             // REVIEW: input? Domain: flash address
-    dev_addr->data1 = swap_frame_addr; // REVIEW: output? Co-Dom: physical mem
+    dev_addr->data0 = swap_frame_addr;
 
     trigger_mutex(PASSEREN, flash_idx);
 
-    status_code = SYSCALL(DOIO, (unsigned int)dev_addr, FLASHREAD, 0);
+    status_code = SYSCALL(DOIO, (int)commandp, (block_idx << 8) | FLASHREAD, 0);
 
     trigger_mutex(VERHOGEN, flash_idx);
 
@@ -180,8 +184,8 @@ void pager() {
 
     // Step 10
     process_asid = support_structure->sup_asid;
-    swapp_entry->sw_pageNo = vpn;
-    process_pte = &support_structure->sup_privatePgTbl[vpn];
+    swap_pte->sw_pageNo = vpi;
+    process_pte = &support_structure->sup_privatePgTbl[vpi];
 
     // Step 11
     setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
