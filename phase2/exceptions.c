@@ -78,6 +78,10 @@ static void _nucleusSyscallHandler() {
 
     // If it is a privileged syscall, was the previous state the Machine mode?
     if (syscall_code < 0 && (mode == MSTATUS_MPP_M)) {
+        if (mode != MSTATUS_MPP_M) {
+            exc_state->cause = PRIVINSTR;
+            _puodHandler(GENERALEXCEPT);
+        }
         switch (syscall_code) {
         case (CREATEPROCESS):
             _createProcess();
@@ -117,12 +121,6 @@ static void _nucleusSyscallHandler() {
         // Restore previous state
         LDST(exc_state);
     }
-
-    if (mode != MSTATUS_MPP_M) {
-        exc_state->cause = PRIVINSTR;
-    }
-
-    // It is not a nucleus syscall, so we pass up its handling
     _puodHandler(GENERALEXCEPT);
 }
 
