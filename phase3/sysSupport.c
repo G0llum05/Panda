@@ -1,6 +1,7 @@
 #include "headers/sysSupport.h"
 #include "../headers/const.h"
 #include "../headers/types.h"
+#include "../phase2/headers/klog.h"
 #include "../testers/h/tconst.h"
 #include "headers/initProc.h"
 #include "headers/vmSupport.h"
@@ -135,7 +136,9 @@ static void _readTerminal() {
 
     // Spec 7.3: It is an error to write to a terminal device from an
     // address outside of the requesting U-proc’s logical address space
+    // REVIEW: shouldn´t  we check the PC? maybe message addes wrong
     if ((memaddr)msg < KUSEG) {
+        klog_print("OutOfBounds\n");
         SYSCALL(TERMPROCESS, 0, 0, 0);
     }
 
