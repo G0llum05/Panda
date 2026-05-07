@@ -200,4 +200,9 @@ static void _execute() {
     SYSCALL(VERHOGEN, (unsigned int)&shell_mutex, 0, 0);
 }
 
-void programTrapHandler() { SYSCALL(TERMPROCESS, 0, 0, 0); }
+void programTrapHandler() {
+    // TODO: distingueish between _execute-d programs and the shell
+    // The first ones should give up the shell_mutex, the last the master
+    SYSCALL(VERHOGEN, (unsigned int)&master_semaphore, 0, 0);
+    SYSCALL(TERMPROCESS, 0, 0, 0);
+}

@@ -6,6 +6,7 @@
 #define FLASHDEVICES 8
 
 extern unsigned int shell_mutex;
+extern unsigned int master_semaphore;
 void trigger_mutex(int code, int index);
 
 #endif
