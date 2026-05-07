@@ -43,7 +43,7 @@ static void _supportSyscallHandler() {
     support_t* process_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
 
     // Store the Machine Previous Privilege mode
-    int mode = process_support->sup_exceptState[GENERALEXCEPT].status;
+    /* int mode = process_support->sup_exceptState[GENERALEXCEPT].status; */
 
     const int syscall_code =
         process_support->sup_exceptState[GENERALEXCEPT].reg_a0;
@@ -51,7 +51,7 @@ static void _supportSyscallHandler() {
     // Increase PC value and go to next instruction
     process_support->sup_exceptState[GENERALEXCEPT].pc_epc += 4;
 
-    if (syscall_code > 0 && (mode == MSTATUS_MPP_M)) {
+    if (syscall_code > 0) {
         switch (syscall_code) {
         case (TERMINATE):
             _terminate();
