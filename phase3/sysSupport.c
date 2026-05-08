@@ -97,8 +97,9 @@ static void _writeTerminal() {
 
     support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
 
-    msg = (char*)support_structure->sup_exceptState[GENERALEXCEPT].reg_a1;
-    char_number = (int)support_structure->sup_exceptState[GENERALEXCEPT].reg_a2;
+    char* msg = (char*)support_structure->sup_exceptState[GENERALEXCEPT].reg_a1;
+    int char_number =
+        (int)support_structure->sup_exceptState[GENERALEXCEPT].reg_a2;
     int char_transmitted = 0;
 
     // Spec 7.2: It is an error to write to a terminal device from an
@@ -132,31 +133,38 @@ static void _readTerminal() {
 
     support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
 
-    char* msg = (char*)support_structure->sup_exceptState[GENERALEXCEPT].reg_a1;
-    int char_transmitted = 0;
+    char* buffer =
+        (char*)support_structure->sup_exceptState[GENERALEXCEPT].reg_a1;
 
     // Spec 7.3: It is an error to write to a terminal device from an
     // address outside of the requesting U-proc’s logical address space
     // REVIEW: shouldn´t  we check the PC? maybe message addes wrong
-    if ((memaddr)msg < KUSEG) {
+    if ((memaddr)buffer < KUSEG) {
         klog_print("OutOfBounds\n");
         SYSCALL(TERMPROCESS, 0, 0, 0);
     }
 
     trigger_mutex(PASSEREN, TERMINALOUTPUT);
 
-    while (*msg != EOS) {
-        unsigned int value = RECEIVECHAR | (((unsigned int)*msg) << 8);
-        status = SYSCALL(DOIO, (int)command, (int)value, 0);
-        if ((status & TERMSTATMASK) != CHARRECV) {
+    char received;
+    int char_received = 0;
+    do {
+        status = SYSCALL(DOIO, (int)command, (int)RECEIVECHAR, 0);
+        received = status >> 8;
+        klog_print_hex(received);
+        klog_print(", ");
+        if ((status & TERMSTATMASK) != CHARRECV) { // RECV = TRANSM
             terminal->recv_status = ~status;
-            break;
+            support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = ~status;
+            trigger_mutex(VERHOGEN, TERMINALOUTPUT);
+            return;
         }
-        char_transmitted++;
-        msg++;
-    }
+        char_received++;
+        *buffer = received;
+        buffer++;
+    } while (received != 10); // line feed
 
-    support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = char_transmitted;
+    support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = char_received;
     trigger_mutex(VERHOGEN, TERMINALOUTPUT);
 }
 
