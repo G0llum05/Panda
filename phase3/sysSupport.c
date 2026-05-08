@@ -162,7 +162,7 @@ static void _readTerminal() {
         char_received++;
         *buffer = received;
         buffer++;
-    } while (received != 10); // line feed
+    } while (received != '\n');
 
     support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = char_received;
     trigger_mutex(VERHOGEN, TERMINALOUTPUT);
@@ -203,10 +203,10 @@ static void _execute() {
     setState(&new_state, asid);
     initializeSupport(new_support, asid);
 
-    SYSCALL(PASSEREN, (unsigned int)&shell_mutex, 0, 0);
-
     SYSCALL(CREATEPROCESS, (int)&new_state, PROCESS_PRIO_HIGH,
             (int)&new_support);
+
+    SYSCALL(PASSEREN, (unsigned int)&shell_mutex, 0, 0);
 
     SYSCALL(VERHOGEN, (unsigned int)&shell_mutex, 0, 0);
 }
