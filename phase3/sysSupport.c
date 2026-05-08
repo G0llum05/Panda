@@ -198,15 +198,15 @@ void initializeSupport(support_t* support, unsigned int asid) {
 static void _execute() {
     unsigned int asid = GET_EXCEPTION_STATE_PTR(0)->reg_a1;
     state_t new_state;
-    support_t new_support;
+    support_t* new_support = allocSupportStruct();
 
     setState(&new_state, asid);
-
-    initializeSupport(&new_support, asid);
-
-    SYSCALL(CREATEPROCESS, 0, PROCESS_PRIO_HIGH, 0);
+    initializeSupport(new_support, asid);
 
     SYSCALL(PASSEREN, (unsigned int)&shell_mutex, 0, 0);
+
+    SYSCALL(CREATEPROCESS, (int)&new_state, PROCESS_PRIO_HIGH,
+            (int)&new_support);
 
     SYSCALL(VERHOGEN, (unsigned int)&shell_mutex, 0, 0);
 }
