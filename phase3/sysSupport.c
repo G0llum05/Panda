@@ -103,8 +103,9 @@ static void _writeTerminal() {
 
     // Spec 7.2: It is an error to write to a terminal device from an
     // address outside of the requesting U-proc’s logical address space
-    if (((memaddr)msg < KUSEG) && (char_number < 0 || char_number > 128))
-        SYSCALL(TERMPROCESS, 0, 0, 0);
+    // FIXME
+    /* if (((memaddr)msg < KUSEG) || (char_number < 0 || char_number > 128)) */
+    /*     SYSCALL(TERMPROCESS, 0, 0, 0); */
 
     trigger_mutex(PASSEREN, TERMINALINPUT);
 
