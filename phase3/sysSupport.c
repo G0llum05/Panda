@@ -109,7 +109,7 @@ static void _writeTerminal() {
 
     trigger_mutex(PASSEREN, TERMINALINPUT);
 
-    while (*msg != EOS) {
+    for (int i = 0; i < char_number; i++) {
         unsigned int value = PRINTCHR | (((unsigned int)*msg) << 8);
         status = SYSCALL(DOIO, (int)command, (int)value, 0);
         if ((status & TERMSTATMASK) != CHARRECV) {
