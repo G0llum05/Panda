@@ -97,8 +97,8 @@ static void _writeTerminal() {
 
     support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
 
-    char* msg = (char*)support_structure->sup_exceptState->reg_a1;
-    int char_number = (int)support_structure->sup_exceptState->reg_a2;
+    msg = (char*)support_structure->sup_exceptState[GENERALEXCEPT].reg_a1;
+    char_number = (int)support_structure->sup_exceptState[GENERALEXCEPT].reg_a2;
     int char_transmitted = 0;
 
     // Spec 7.2: It is an error to write to a terminal device from an
@@ -119,7 +119,7 @@ static void _writeTerminal() {
         msg++;
     }
 
-    support_structure->sup_exceptState->reg_a0 = char_transmitted;
+    support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = char_transmitted;
 
     trigger_mutex(VERHOGEN, TERMINALINPUT);
 }
@@ -131,7 +131,7 @@ static void _readTerminal() {
 
     support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
 
-    char* msg = (char*)support_structure->sup_exceptState->reg_a1;
+    char* msg = (char*)support_structure->sup_exceptState[GENERALEXCEPT].reg_a1;
     int char_transmitted = 0;
 
     // Spec 7.3: It is an error to write to a terminal device from an
@@ -155,8 +155,7 @@ static void _readTerminal() {
         msg++;
     }
 
-    support_structure->sup_exceptState->reg_a0 = char_transmitted;
-
+    support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = char_transmitted;
     trigger_mutex(VERHOGEN, TERMINALOUTPUT);
 }
 
