@@ -64,9 +64,10 @@ file(GLOB TESTERS_SRC "testers/*.c")
 
 foreach(TEST_SRC ${TESTERS_SRC})
     get_filename_component(TEST_NAME ${TEST_SRC} NAME_WE)
-    if(NOT TEST_NAME STREQUAL "print")
+    if((NOT TEST_NAME STREQUAL "print") AND (NOT TEST_NAME STREQUAL "string"))
         add_executable(${TEST_NAME}
            ${TEST_SRC}
+           testers/string.c
            testers/print.c
            ${URISCV_SRC}/crtso.S
            ${URISCV_SRC}/liburiscv.S

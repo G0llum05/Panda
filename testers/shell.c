@@ -1,50 +1,65 @@
-#include <uriscv/liburiscv.h>
-
-#include "../phase2/headers/klog.h"
 #include "h/string.h"
 #include "h/tconst.h"
-#include "uriscv/const.h"
+#include <uriscv/liburiscv.h>
 
-static void _exit() { SYSCALL(TERMINATE, 0, 0, 0); }
+// NOTE: first implemented function MUST be main
+static void _exit();
+static void _unknown();
 
-// commands procedures
-static void _uname() { SYSCALL(EXECUTE, 4, 0, 0); }
-
-typedef struct {
-    char* token;
-    void (*proc)(void);
-} command_t;
-
-// command mappings
-const command_t commands[] = {{"uname", _uname}, {"exit", _exit}};
+#define SML 3
 
 void main() {
-    char ibuffer[256];
-    char* message = "FUCK YOU\n";
-    if (SYSCALL(WRITETERMINAL, (int)message, strlen(message), 0) < 0) {
-        klog_print("Error, I die.\n");
+    const char fibEight[] = "fibEight";
+    const char echo[] = "echo";
+    const char fibEleven[] = "fibEleven";
+    const char uname[] = "uname";
+    const char date[] = "date";
+    const char sl[] = "sl";
+    const char calc[] = "calc";
+    const char exit[] = "exit";
+    const char* commands[7] = {fibEight, echo, fibEleven, uname,
+                               date,     sl,   calc};
+
+    char ibuffer[128];
+    char shell_mark[SML] = ">> ";
+    int status = SYSCALL(WRITETERMINAL, (int)shell_mark, SML, 0);
+    if (status < 0)
         _exit();
-    }
-    while (TRUE) { // main loop
-        // read input
+
+    while (1) {
         const int ilen = SYSCALL(READTERMINAL, (int)ibuffer, 0, 0);
         if (ilen < 0)
-            _exit(); // failed to read ?
+            _exit();
+
         char token[ilen];
-        char* it = (char*)parse_word(ibuffer, token, ilen);
-        for (int i = 0; i < sizeof(commands) / sizeof(command_t); i++) {
-            if (strcmp(token, commands[i].token) == 0) {
-                // found token
-                (*commands[i].proc)();
+        int found = 0;
+        parse_word(ibuffer, token, ilen);
+
+        for (int i = 0; i < 7; i++) {
+            if (strcmp(token, commands[i]) == 0) {
+                found = 1;
+                SYSCALL(EXECUTE, i + 2, 0, 0);
             }
         }
 
-        // If here invalid token
-        char* message = "FUCK YOU\n";
-        if (SYSCALL(WRITETERMINAL, (int)message, strlen(message), 0) < 0) {
+        if (strcmp(token, exit) == 0) {
             _exit();
         }
-        continue;
+
+        if (!found)
+            _unknown();
+
+        status = SYSCALL(WRITETERMINAL, (int)shell_mark, SML, 0);
+        if (status < 0)
+            _exit();
     }
-    _exit();
+}
+static void _exit() { SYSCALL(TERMINATE, 0, 0, 0); }
+
+static void _unknown() {
+    // FIXME: can't print this shit, out of memory?
+    /* const char unknown[] = "Unknown instruction\n"; */
+    /* int status = SYSCALL(WRITETERMINAL, (int)unknown, 20, 0); */
+    /* if (status < 0) */
+    /*     _exit(); */
 }
