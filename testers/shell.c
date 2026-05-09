@@ -39,6 +39,7 @@ void main() {
             if (strcmp(token, commands[i]) == 0) {
                 found = 1;
                 SYSCALL(EXECUTE, i + 2, 0, 0);
+                break;
             }
         }
 

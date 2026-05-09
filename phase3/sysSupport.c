@@ -29,6 +29,7 @@ void supportExceptionHandler() {
     // NOTE: Environment Calls in Machine mode should not be
     // processed by the support level exception handler
     case EXC_ECU:
+    case EXC_ECM:
         _supportSyscallHandler();
         break;
 
@@ -151,8 +152,6 @@ static void _readTerminal() {
     do {
         status = SYSCALL(DOIO, (int)command, (int)RECEIVECHAR, 0);
         received = status >> 8;
-        klog_print_hex(received);
-        klog_print(", ");
         if ((status & TERMSTATMASK) != CHARRECV) { // RECV = TRANSM
             terminal->recv_status = ~status;
             support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = ~status;
@@ -196,7 +195,8 @@ void initializeSupport(support_t* support, unsigned int asid) {
 }
 
 static void _execute() {
-    unsigned int asid = GET_EXCEPTION_STATE_PTR(0)->reg_a1;
+    support_t* current_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
+    unsigned int asid = current_support->sup_exceptState[GENERALEXCEPT].reg_a1;
     state_t new_state;
     support_t* new_support = allocSupportStruct();
 
@@ -204,7 +204,7 @@ static void _execute() {
     initializeSupport(new_support, asid);
 
     SYSCALL(CREATEPROCESS, (int)&new_state, PROCESS_PRIO_HIGH,
-            (int)&new_support);
+            (int)new_support);
 
     SYSCALL(PASSEREN, (unsigned int)&shell_mutex, 0, 0);
 
