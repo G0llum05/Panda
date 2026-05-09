@@ -158,14 +158,14 @@ void pager() {
         // Save old frame
         dev_addr->data0 = swap_frame_addr;
 
-        trigger_mutex(PASSEREN, flash_idx);
+        SYSCALL(PASSEREN, (int)&support_mutex[flash_idx], 0, 0);
 
         // REVIEW: is page-block mapping 1-1?
         // Block could be 1024, page is 4096
         status_code =
             SYSCALL(DOIO, (int)commandp, (block_idx << 8) | FLASHWRITE, 0);
 
-        trigger_mutex(VERHOGEN, flash_idx);
+        SYSCALL(VERHOGEN, (int)&support_mutex[flash_idx], 0, 0);
 
         _handleStatus(status_code);
     }
@@ -174,11 +174,11 @@ void pager() {
     // Load missing page into memory
     dev_addr->data0 = swap_frame_addr;
 
-    trigger_mutex(PASSEREN, flash_idx);
+    SYSCALL(PASSEREN, (int)&support_mutex[flash_idx], 0, 0);
 
     status_code = SYSCALL(DOIO, (int)commandp, (block_idx << 8) | FLASHREAD, 0);
 
-    trigger_mutex(VERHOGEN, flash_idx);
+    SYSCALL(VERHOGEN, (int)&support_mutex[flash_idx], 0, 0);
 
     _handleStatus(status_code);
 

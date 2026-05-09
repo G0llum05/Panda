@@ -14,27 +14,6 @@ unsigned int support_mutex[FLASHDEVICES + TERMINALDEVICES];
 // Flash devices index 0-7
 // Terminal output device index 8
 // Terminal input device index 9
-void trigger_mutex(int code, int index) {
-    int sem_index = -1;
-
-    // Calcolo dell'indice del semaforo
-    if (index < FLASHDEVICES) {
-        sem_index = index;
-    } else if (index == TERMINALOUTPUT) {
-        sem_index = 8;
-    } else if (index == TERMINALINPUT) {
-        sem_index = 9;
-    }
-    if (sem_index == -1) {
-        klog_print("Capo capo capo! >:( \n"); // good error signaling
-        return;
-    }
-    if (code == PASSEREN || code == VERHOGEN) {
-        SYSCALL(code, (int)&support_mutex[sem_index], 0, 0);
-        return;
-    }
-    klog_print("Hey bôss! >:( \n"); // good error signaling
-}
 
 // Instatiator process
 void test() {

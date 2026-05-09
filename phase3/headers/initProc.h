@@ -7,6 +7,6 @@
 
 extern unsigned int shell_mutex;
 extern unsigned int master_semaphore;
-void trigger_mutex(int code, int index);
+extern unsigned int support_mutex[FLASHDEVICES + TERMINALDEVICES];
 
 #endif

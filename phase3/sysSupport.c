@@ -108,7 +108,7 @@ static void _writeTerminal() {
     /* if (((memaddr)msg < KUSEG) || (char_number < 0 || char_number > 128)) */
     /*     SYSCALL(TERMPROCESS, 0, 0, 0); */
 
-    trigger_mutex(PASSEREN, TERMINALINPUT);
+    SYSCALL(PASSEREN, (int)&support_mutex[9], 0, 0);
 
     for (int i = 0; i < char_number; i++) {
         unsigned int value = PRINTCHR | (((unsigned int)*msg) << 8);
@@ -123,7 +123,7 @@ static void _writeTerminal() {
 
     support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = char_transmitted;
 
-    trigger_mutex(VERHOGEN, TERMINALINPUT);
+    SYSCALL(VERHOGEN, (int)&support_mutex[9], 0, 0);
 }
 
 static void _readTerminal() {
@@ -144,7 +144,7 @@ static void _readTerminal() {
         SYSCALL(TERMPROCESS, 0, 0, 0);
     }
 
-    trigger_mutex(PASSEREN, TERMINALOUTPUT);
+    SYSCALL(PASSEREN, (int)&support_mutex[8], 0, 0);
 
     char received;
     int char_received = 0;
@@ -156,7 +156,7 @@ static void _readTerminal() {
         if ((status & TERMSTATMASK) != CHARRECV) { // RECV = TRANSM
             terminal->recv_status = ~status;
             support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = ~status;
-            trigger_mutex(VERHOGEN, TERMINALOUTPUT);
+            SYSCALL(VERHOGEN, (int)&support_mutex[8], 0, 0);
             return;
         }
         char_received++;
@@ -165,7 +165,7 @@ static void _readTerminal() {
     } while (received != '\n');
 
     support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = char_received;
-    trigger_mutex(VERHOGEN, TERMINALOUTPUT);
+    SYSCALL(VERHOGEN, (int)&support_mutex[8], 0, 0);
 }
 
 void initializeSupport(support_t* support, unsigned int asid) {
