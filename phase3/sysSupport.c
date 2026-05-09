@@ -98,9 +98,13 @@ static void _writeTerminal() {
 
     support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
 
-    char* msg = (char*)support_structure->sup_exceptState[GENERALEXCEPT].reg_a1;
-    int char_number =
-        (int)support_structure->sup_exceptState[GENERALEXCEPT].reg_a2;
+    state_t* exc_state = &support_structure->sup_exceptState[GENERALEXCEPT];
+    char* msg = (char*)exc_state->reg_a1;
+    if ((int)msg < KUSEG) { // NOTE: string-literal (offset)
+        memaddr nearest_page = exc_state->pc_epc & 0xFFFFF000;
+        msg = (char*)msg - KERNELSTACK + nearest_page;
+    } // else in STACK
+    int char_number = (int)exc_state->reg_a2;
     int char_transmitted = 0;
 
     // Spec 7.2: It is an error to write to a terminal device from an
