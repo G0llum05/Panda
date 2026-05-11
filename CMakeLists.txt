@@ -66,9 +66,21 @@ add_custom_target(
 	DEPENDS MultiPandOS
 )
 
-# -E env FOO=${FOO} BAR=${BAR}
-# add_custom_target(
-#     run_makefile
-#     COMMAND ${CMAKE_COMMAND} make -f testers/Makefile
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/testers
-# )
+set(GENERATED_URISCV_FILES
+    testers/*.uriscv
+)
+
+add_custom_command(
+  OUTPUT ${GENERATED_URISCV_FILES}
+  COMMAND ${CMAKE_COMMAND} -E env
+    URISCV_LIB=${URISCV_LIB}
+    URISCV_INC=${URISCV_INC}
+    URISCV_SRC=${URISCV_SRC}
+    XT_PRG_PREFIX=${XT_PRG_PREFIX}
+    make -f ${CMAKE_SOURCE_DIR}/testers/Makefile
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/testers
+)
+
+add_custom_target(testers ALL
+    DEPENDS ${GENERATED_URISCV_FILES}
+)

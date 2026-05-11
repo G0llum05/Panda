@@ -1,7 +1,7 @@
 #$Id: Makefile,v 1.2 2004/05/01 14:53:48 morsiani Exp morsiani $
 # Makefile for mipsel-linux
 #
-XT_PRG_PREFIX = riscv64-unknown-elf-
+# XT_PRG_PREFIX = riscv64-unknown-elf-
 CC = $(XT_PRG_PREFIX)gcc
 LD = $(XT_PRG_PREFIX)ld
 AS = $(XT_PRG_PREFIX)as
@@ -11,9 +11,9 @@ OBJDUMP = $(XT_PRG_PREFIX)objdump
 # uRISCV-related paths
 URISCV_DIR_PREFIX = /usr/local
 
-URISCV_DATA_DIR = /usr/local/share/uriscv
-URISCV_INCLUDE_DIR = /usr/include
-URISCV_LIB_DIR = /usr/lib/uriscv
+URISCV_DATA_DIR = $(URISCV_SRC)
+URISCV_INCLUDE_DIR = $(URISCV_INC)
+URISCV_LIB_DIR = $(URISCV_LIB)
 
 TDEFS = testers/h/print.h testers/h/tconst.h $(URISCV_INCLUDE_DIR)/uriscv/liburiscv.e Makefile
 
