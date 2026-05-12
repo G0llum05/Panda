@@ -191,8 +191,7 @@ void initializeSupport(support_t* support, unsigned int asid) {
         if (i != USERPGTBLSIZE - 1) {
             entry->pte_entryHI = KUSEG + (i << ENTRYHI_VPN_BIT);
         } else {
-            entry->pte_entryHI =
-                (USERSTACKTOP - PAGESIZE) + (i << ENTRYHI_VPN_BIT); // 0xbffff
+            entry->pte_entryHI = (USERSTACKTOP - PAGESIZE); // 0xbffff
         }
         entry->pte_entryHI |= shiftedASID;
         entry->pte_entryLO |= DIRTYON;

@@ -140,7 +140,7 @@ void pager() {
     memaddr commandp = (memaddr)&dev_addr->command;
     unsigned int status_code;
     memaddr swap_frame_addr = FLASHPOOLSTART + frame_to_pick * PAGESIZE;
-    unsigned int block_idx = vpi + 1;
+    unsigned int block_idx = vpi;
 
     if (process_asid != -1) { // A user process uses this frame
         setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
