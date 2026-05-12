@@ -45,7 +45,9 @@ void test() {
     initializeSupport(shell_support, SHELLASID);
 
     // Create the shell
-    // TODO: check return status
+    // NOTE: the instantiator process is only run once, so
+    // checking for return status is useless as the system
+    // would halt.
     SYSCALL(CREATEPROCESS, (int)&shell_state, PROCESS_PRIO_LOW,
             (int)shell_support);
 
