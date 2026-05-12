@@ -216,8 +216,12 @@ static void _execute() {
 }
 
 void programTrapHandler() {
-    // TODO: distingueish between _execute-d programs and the shell
-    // The first ones should give up the shell_mutex, the last the master
-    SYSCALL(VERHOGEN, (unsigned int)&master_semaphore, 0, 0);
+    support_t* current_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
+    unsigned int asid = current_support->sup_exceptState[GENERALEXCEPT].reg_a1;
+    if (asid == 1) {
+        SYSCALL(VERHOGEN, (int)&master_semaphore, 0, 0);
+    } else {
+        SYSCALL(VERHOGEN, (int)&shell_mutex, 0, 0);
+    }
     SYSCALL(TERMPROCESS, 0, 0, 0);
 }
