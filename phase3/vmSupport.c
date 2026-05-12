@@ -34,7 +34,7 @@ void setState(state_t* state, unsigned int asid) {
     state->mie = MIE_ALL;
     state->pc_epc = (memaddr)UPROCSTARTADDR;
     state->status |= MSTATUS_MPIE_MASK;
-    state->entry_hi = KUSEG + (asid << ENTRYHI_ASID_BIT);
+    state->entry_hi = asid << ENTRYHI_ASID_BIT;
 }
 
 // Initialize the support struct free list (call once at startup)
