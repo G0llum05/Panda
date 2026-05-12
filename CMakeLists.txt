@@ -4,23 +4,24 @@ project(MultiPandOS LANGUAGES C ASM)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Look up RISCV GCC compiler path
-find_program(RISCV_GCC riscv64-unknown-elf-gcc
+find_program(RISCV_GCC
+  NAMES riscv64-unknown-elf-gcc riscv64-elf-gcc
   PATHS /usr/local/bin /usr/bin
   NO_DEFAULT_PATH
+  REQUIRED
 )
-if(NOT RISCV_GCC)
-  find_program(RISCV_GCC riscv64-elf-gcc
-    PATHS /usr/local/bin /usr/bin
-    NO_DEFAULT_PATH
-  )
-endif()
+
+find_program(RISCV_LD
+  NAMES riscv64-unknown-elf-ld riscv64-elf-ld
+  PATHS /usr/local/bin /usr/bin
+  NO_DEFAULT_PATH
+  REQUIRED
+)
 
 if(RISCV_GCC MATCHES "riscv64-unknown-elf-gcc")
   set(XT_PRG_PREFIX "riscv64-unknown-elf-")
 elseif(RISCV_GCC MATCHES "riscv64-elf-gcc")
   set(XT_PRG_PREFIX "riscv64-elf-")
-else()
-  message(FATAL_ERROR "RISCV GCC not found")
 endif()
 
 # Find uriscv source and include directories
@@ -34,9 +35,14 @@ find_path(URISCV_INC uriscv/liburiscv.h # liburiscv.h as an identifier
   REQUIRED
 )
 
-set(CMAKE_C_COMPILER ${XT_PRG_PREFIX}gcc)
-set(CMAKE_ASM_COMPILER ${XT_PRG_PREFIX}gcc)
-set(CMAKE_C_LINKER ${XT_PRG_PREFIX}ld)
+find_path(URISCV_LIB crti.o
+  PATHS /usr/local/lib/uriscv /usr/lib/uriscv
+  REQUIRED
+)
+
+set(CMAKE_C_COMPILER ${RISCV_GCC})
+set(CMAKE_ASM_COMPILER ${RISCV_GCC})
+set(CMAKE_C_LINKER ${RISCV_LD})
 
 add_link_options(-nostdlib -T ${URISCV_SRC}/uriscvcore.ldscript -march=rv32imfd)
 add_compile_options(-ffreestanding -static -nostartfiles -nostdlib -I${URISCV_INC} -ggdb -Wall -O0 -std=gnu99 -march=rv32imafd -mabi=ilp32d)
@@ -44,7 +50,7 @@ add_compile_options(-ffreestanding -static -nostartfiles -nostdlib -I${URISCV_IN
 file(GLOB PHASE1_SRC "phase1/*.c")
 file(GLOB PHASE2_SRC "phase2/*.c")
 file(GLOB PHASE3_SRC "phase3/*.c")
-file(GLOB PHASE3_TEST_SRC "testers/*.c")
+
 add_executable(MultiPandOS
     ${PHASE1_SRC}
     ${PHASE2_SRC}
@@ -60,37 +66,21 @@ add_custom_target(
 	DEPENDS MultiPandOS
 )
 
-file(GLOB TESTERS_SRC "testers/*.c")
+set(GENERATED_URISCV_FILES
+    testers/*.uriscv
+)
 
-foreach(TEST_SRC ${TESTERS_SRC})
-    get_filename_component(TEST_NAME ${TEST_SRC} NAME_WE)
-    if((NOT TEST_NAME STREQUAL "print") AND (NOT TEST_NAME STREQUAL "string"))
-        add_executable(${TEST_NAME}
-           ${TEST_SRC}
-           testers/string.c
-           testers/print.c
-           ${URISCV_SRC}/crtso.S
-           ${URISCV_SRC}/liburiscv.S
-        )
-        # Apply same compile/link flags as before
-        target_compile_options(${TEST_NAME} PRIVATE
-            -ffreestanding -static -nostdlib -I${URISCV_INC} -ggdb -Wall -O0 -std=gnu99 -march=rv32imafd -mabi=ilp32d
-        )
-        target_link_options(${TEST_NAME} PRIVATE
-            -nostdlib -T ${URISCV_SRC}/uriscvcore.ldscript -march=rv32imfd
-        )
+add_custom_command(
+  OUTPUT ${GENERATED_URISCV_FILES}
+  COMMAND ${CMAKE_COMMAND} -E env
+    URISCV_LIB=${URISCV_LIB}
+    URISCV_INC=${URISCV_INC}
+    URISCV_SRC=${URISCV_SRC}
+    XT_PRG_PREFIX=${XT_PRG_PREFIX}
+    make -f ${CMAKE_SOURCE_DIR}/testers/Makefile
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/testers
+)
 
-        set_target_properties(${TEST_NAME} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/testers"
-        )
-
-        # Generate the .uriscv file in testers/
-        add_custom_command(
-            TARGET ${TEST_NAME}
-            POST_BUILD
-            COMMAND uriscv-mkdev -f "${PROJECT_SOURCE_DIR}/testers/${TEST_NAME}.uriscv" "${PROJECT_SOURCE_DIR}/testers/${TEST_NAME}"
-            BYPRODUCTS "${PROJECT_SOURCE_DIR}/testers/${TEST_NAME}.uriscv"
-            COMMENT "Generating ${TEST_NAME}.uriscv"
-        )
-    endif()
-endforeach()
+add_custom_target(testers ALL
+    DEPENDS ${GENERATED_URISCV_FILES}
+)

@@ -1,7 +1,7 @@
 #$Id: Makefile,v 1.2 2004/05/01 14:53:48 morsiani Exp morsiani $
 # Makefile for mipsel-linux
 #
-XT_PRG_PREFIX = riscv32-unknown-linux-gnu-
+# XT_PRG_PREFIX = riscv64-unknown-elf-
 CC = $(XT_PRG_PREFIX)gcc
 LD = $(XT_PRG_PREFIX)ld
 AS = $(XT_PRG_PREFIX)as
@@ -11,18 +11,18 @@ OBJDUMP = $(XT_PRG_PREFIX)objdump
 # uRISCV-related paths
 URISCV_DIR_PREFIX = /usr/local
 
-URISCV_DATA_DIR = $(URISCV_DIR_PREFIX)/share/uriscv
-URISCV_INCLUDE_DIR = $(URISCV_DIR_PREFIX)/include
-URISCV_LIB_DIR = $(URISCV_DIR_PREFIX)/lib/uriscv
+URISCV_DATA_DIR = $(URISCV_SRC)
+URISCV_INCLUDE_DIR = $(URISCV_INC)
+URISCV_LIB_DIR = $(URISCV_LIB)
 
-TDEFS = test/print.h test/tconst.h $(URISCV_INCLUDE_DIR)/uriscv/liburiscv.e Makefile
+TDEFS = testers/h/print.h testers/h/tconst.h testers/h/string.h $(URISCV_INCLUDE_DIR)/uriscv/liburiscv.e Makefile
 
 # CFLAGS = -ffreestanding -ansi -c -mips1 -mabi=32 -mfp32 -mno-gpopt -G 0 -I$(URISCV_INCLUDE_DIR) -std=gnu99 -fno-pic -mno-abicalls
 CFLAGS_LANG = -ffreestanding -static -c -nostdlib
 CFLAGS = $(CFLAGS_LANG) -I$(URISCV_INCLUDE_DIR) -Wall -O0 -march=rv32imfd -mabi=ilp32d
 # -Wall
 
-LDAOUTFLAGS = -G 0 -nostdlib -T $(URISCV_DATA_DIR)/uriscvaout.ldscript
+LDAOUTFLAGS = -G 0 -nostdlib -T $(URISCV_DATA_DIR)/uriscvaout.ldscript -march=rv32imfd -melf32lriscv 
 LDCOREFLAGS = -G 0 -nostdlib -T $(URISCV_DATA_DIR)/uriscvcore.ldscript
 
 # AS = mipsel-linux-gnu-as -KPIC
@@ -36,8 +36,8 @@ all: shell.uriscv fibEight.uriscv echo.uriscv fibEleven.uriscv uname.uriscv calc
 %.o: %.c $(TDEFS)
 	$(CC) $(CFLAGS) $<
 
-%.t: %.o print.o $(URISCV_LIB_DIR)/crti.o
-	$(LD) $(LDAOUTFLAGS) $(URISCV_LIB_DIR)/crti.o $< print.o $(URISCV_LIB_DIR)/liburiscv.o -o $@
+%.t: %.o string.o print.o $(URISCV_LIB_DIR)/crti.o
+	$(LD) $(LDAOUTFLAGS) $(URISCV_LIB_DIR)/crti.o $< string.o print.o $(URISCV_LIB_DIR)/liburiscv.o -o $@
 
 %.t.aout.uriscv: %.t
 	$(EF) -a $<

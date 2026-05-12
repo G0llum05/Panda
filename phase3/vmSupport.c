@@ -34,7 +34,7 @@ void setState(state_t* state, unsigned int asid) {
     state->mie = MIE_ALL;
     state->pc_epc = (memaddr)UPROCSTARTADDR;
     state->status |= MSTATUS_MPIE_MASK;
-    state->entry_hi = KUSEG + (asid << ENTRYHI_ASID_BIT);
+    state->entry_hi = asid << ENTRYHI_ASID_BIT;
 }
 
 // Initialize the support struct free list (call once at startup)
@@ -140,7 +140,7 @@ void pager() {
     memaddr commandp = (memaddr)&dev_addr->command;
     unsigned int status_code;
     memaddr swap_frame_addr = FLASHPOOLSTART + frame_to_pick * PAGESIZE;
-    unsigned int block_idx = vpi + 1;
+    unsigned int block_idx = vpi;
 
     if (process_asid != -1) { // A user process uses this frame
         setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
