@@ -97,9 +97,9 @@ static void _writeTerminal() {
     memaddr status;
 
     support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
-
     state_t* exc_state = &support_structure->sup_exceptState[GENERALEXCEPT];
     char* msg = (char*)exc_state->reg_a1;
+
     if ((int)msg < KUSEG) { // NOTE: string-literal (offset)
         memaddr nearest_page = exc_state->pc_epc & 0xFFFFF000;
         msg = (char*)msg - KERNELSTACK + nearest_page;
@@ -109,9 +109,9 @@ static void _writeTerminal() {
 
     // Spec 7.2: It is an error to write to a terminal device from an
     // address outside of the requesting U-proc’s logical address space
-    // REVIEW
-    /* if (((memaddr)msg < KUSEG) || (char_number < 0 || char_number > 128)) */
-    /*     SYSCALL(TERMPROCESS, 0, 0, 0); */
+    if (((memaddr)exc_state->pc_epc < KUSEG) ||
+        (char_number < 0 || char_number > 128))
+        SYSCALL(TERMPROCESS, 0, 0, 0);
 
     SYSCALL(PASSEREN, (int)&support_mutex[9], 0, 0);
 
@@ -137,14 +137,12 @@ static void _readTerminal() {
     unsigned int status;
 
     support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
-
-    char* buffer =
-        (char*)support_structure->sup_exceptState[GENERALEXCEPT].reg_a1;
+    state_t* exc_state = &support_structure->sup_exceptState[GENERALEXCEPT];
+    char* buffer = (char*)exc_state->reg_a1;
 
     // Spec 7.3: It is an error to write to a terminal device from an
     // address outside of the requesting U-proc’s logical address space
-    // REVIEW: shouldn´t  we check the PC? maybe message addes wrong
-    if ((memaddr)buffer < KUSEG) {
+    if ((memaddr)exc_state->pc_epc < KUSEG) {
         klog_print("OutOfBounds\n");
         SYSCALL(TERMPROCESS, 0, 0, 0);
     }
@@ -158,7 +156,7 @@ static void _readTerminal() {
         received = status >> 8;
         if ((status & TERMSTATMASK) != CHARRECV) { // RECV = TRANSM
             terminal->recv_status = ~status;
-            support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = ~status;
+            exc_state->reg_a0 = ~status;
             SYSCALL(VERHOGEN, (int)&support_mutex[8], 0, 0);
             return;
         }
@@ -167,7 +165,7 @@ static void _readTerminal() {
         buffer++;
     } while (received != '\n');
 
-    support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = char_received;
+    exc_state->reg_a0 = char_received;
     SYSCALL(VERHOGEN, (int)&support_mutex[8], 0, 0);
 }
 
