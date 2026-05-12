@@ -7,7 +7,7 @@ void main() {
     const char* commands[7] = {"fibEight", "echo", "fibEleven", "uname",
                                "date",     "sl",   "calc"};
     char ibuffer[128];
-    char* shell_mark = "|> ";
+    char* shell_mark = ">> ";
     print(WRITETERMINAL, shell_mark);
 
     while (1) {
