@@ -211,8 +211,6 @@ static void _execute() {
             (int)new_support);
 
     SYSCALL(PASSEREN, (unsigned int)&shell_mutex, 0, 0);
-
-    SYSCALL(VERHOGEN, (unsigned int)&shell_mutex, 0, 0);
 }
 
 void programTrapHandler() {
