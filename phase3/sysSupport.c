@@ -176,12 +176,13 @@ static void _readTerminal() {
 void initializeSupport(support_t* support, unsigned int asid) {
     const unsigned int shiftedASID = asid << (ENTRYHI_ASID_BIT);
 
+    const unsigned int ramtop = (*((int*)RAMBASEADDR)) + (*((int*)RAMBASESIZE));
     // Initialize shell support struct
     context_t* context = support->sup_exceptContext;
-    context[GENERALEXCEPT].stackPtr = (memaddr)&support->sup_stackGen[499];
+    context[GENERALEXCEPT].stackPtr = (memaddr)ramtop - (PAGESIZE * (asid));
     context[GENERALEXCEPT].status = MSTATUS_MPP_M;
     context[GENERALEXCEPT].pc = (memaddr)supportExceptionHandler;
-    context[PGFAULTEXCEPT].stackPtr = (memaddr)&support->sup_stackTLB[499];
+    context[PGFAULTEXCEPT].stackPtr = (memaddr)ramtop - (PAGESIZE * (asid));
     context[PGFAULTEXCEPT].status = MSTATUS_MPP_M;
     context[PGFAULTEXCEPT].pc = (memaddr)pager;
     support->sup_asid = asid;
