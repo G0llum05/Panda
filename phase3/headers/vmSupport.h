@@ -34,7 +34,7 @@ void initSupportPool();
 support_t* allocSupportStruct();
 void freeSupportStruct(support_t* sup);
 void invalidateSwapPoolByASID(unsigned int asid);
-void flushTLBBySupport(support_t* sup);
+void invalidateTLBBySupport(support_t* sup);
 int isSupportPoolEmpty();
 
 #endif

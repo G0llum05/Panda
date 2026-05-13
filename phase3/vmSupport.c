@@ -82,15 +82,15 @@ void invalidateSwapPoolByASID(unsigned int asid) {
     }
 }
 
-void flushTLBBySupport(support_t* sup) {
+void invalidateTLBBySupport(support_t* sup) {
     setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
     for (int i = 0; i < USERPGTBLSIZE; i++) {
         pteEntry_t* entry = &sup->sup_privatePgTbl[i];
         setENTRYHI(entry->pte_entryHI);
         TLBP();
         if ((getINDEX() & PROBEBIT) == 0) { // entry trovata in TLB
-            setENTRYHI(0xFFFFF000);
-            setENTRYLO(0); // VALID=0
+            SETBITOFF(entry->pte_entryLO, ENTRYLO_VALID_BIT);
+            setENTRYLO(entry->pte_entryLO);
             TLBWI();
         }
     }

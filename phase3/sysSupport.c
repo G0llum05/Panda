@@ -84,7 +84,7 @@ static void _terminate() {
     if (current_support != NULL) {
         int asid = current_support->sup_asid;
         invalidateSwapPoolByASID(current_support->sup_asid);
-        flushTLBBySupport(current_support);
+        invalidateTLBBySupport(current_support);
         freeSupportStruct(current_support);
         if (asid == SHELLASID) {
             SYSCALL(VERHOGEN, (memaddr)&master_semaphore, 0, 0);
@@ -223,7 +223,7 @@ void programTrapHandler() {
     support_t* current_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
     unsigned int asid = current_support->sup_asid;
     invalidateSwapPoolByASID(asid);
-    flushTLBBySupport(current_support);
+    invalidateTLBBySupport(current_support);
     freeSupportStruct(current_support);
     if (asid == SHELLASID) {
         SYSCALL(VERHOGEN, (int)&master_semaphore, 0, 0);
