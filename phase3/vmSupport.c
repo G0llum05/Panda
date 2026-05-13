@@ -1,5 +1,6 @@
 #include "headers/vmSupport.h"
 #include "../headers/const.h"
+#include "../headers/listx.h"
 #include "../headers/types.h"
 #include "headers/initProc.h"
 #include "headers/sysSupport.h"
@@ -108,6 +109,7 @@ void initSwapStructs() {
 }
 
 // Spec 3
+unsigned int next_tlbi = 0;
 void uTLB_RefillHandler() {
     state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
     unsigned int vpn = ENTRYHI_GET_VPN(cpu_state->entry_hi);
@@ -119,7 +121,13 @@ void uTLB_RefillHandler() {
         &support_structure->sup_privatePgTbl[vpn > 30 ? 31 : vpn];
     setENTRYHI(page_table_entry->pte_entryHI);
     setENTRYLO(page_table_entry->pte_entryLO);
-    TLBWR();
+    TLBP();
+    if ((getINDEX() & PROBEBIT) != 0) {
+        // entry not found, round robinize
+        setINDEX(next_tlbi << 8);
+        next_tlbi = (next_tlbi + 1) % POOLSIZE;
+    }
+    TLBWI();
     LDST((state_t*)cpu_state);
 }
 
@@ -157,6 +165,7 @@ void pager() {
     swap_t* swap_pte = &swap_pool_table[frame_to_pick];
     int process_asid = swap_pte->sw_asid;
 
+    // TODO: re-rename variables
     pteEntry_t* process_pte = swap_pte->sw_pte;
     int flash_idx = support_structure->sup_asid - 1; // NOTE: flashNo + 1 = ASID
     dtpreg_t* dev_addr = (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, flash_idx);
@@ -186,7 +195,7 @@ void pager() {
 
         SYSCALL(PASSEREN, (int)&support_mutex[old_page_flash_idx], 0, 0);
 
-        // REVIEW: is page-block mapping 1-1?
+        // REVIEW: is page-block mapping 1-1? (apparently yes)
         // Block could be 1024, page is 4096
         status_code =
             SYSCALL(DOIO, (int)old_commandp, (block_idx << 8) | FLASHWRITE, 0);
