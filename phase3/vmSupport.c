@@ -32,6 +32,7 @@ static struct list_head supportsFree;
 // Spec 12.2: "[...] the Swap Pool table is local to this module."
 static swap_t swap_pool_table[SWAPPOOLSIZE];
 static unsigned int swap_pool_mutex = 1;
+static int initializedDirtyness[UPROCMAX];
 
 static void _handleStatus(unsigned int);
 
@@ -218,6 +219,24 @@ void pager() {
     SYSCALL(VERHOGEN, (int)&support_mutex[flash_idx], 0, 0);
 
     _handleStatus(status_code);
+
+    // Creative Step: If header set dirtyness
+    if (vpi == 0 && !initializedDirtyness[process_asid]) { // or 1?
+        initializedDirtyness[process_asid] = 1;
+        typedef unsigned int uint;
+        uint text_start_block = (*(uint*)(swap_frame_addr + 0x0010)) / PAGESIZE;
+        uint text_of = (*(uint*)(swap_frame_addr + 0x0014)) / PAGESIZE;
+        for (int i = 0; i < 31; i++) {
+            if (text_start_block <= i && i <= text_start_block + text_of) {
+                // set not dirty
+                pteEntry_t* pte = &support_structure->sup_privatePgTbl[i];
+                SETBITOFF(pte->pte_entryLO, ENTRYLO_DIRTY_BIT);
+            } else {
+                pteEntry_t* pte = &support_structure->sup_privatePgTbl[i];
+                SETBITON(pte->pte_entryLO, ENTRYLO_DIRTY_BIT);
+            }
+        }
+    }
 
     // Step 10
     process_asid = support_structure->sup_asid;

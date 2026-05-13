@@ -1,6 +1,5 @@
 #include "headers/initProc.h"
 #include "../headers/const.h"
-#include "../phase2/headers/klog.h"
 #include "headers/sysSupport.h"
 #include "headers/vmSupport.h"
 #include "uriscv/liburiscv.h"
