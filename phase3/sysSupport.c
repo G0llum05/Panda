@@ -9,12 +9,12 @@
 #include "uriscv/liburiscv.h"
 #include "uriscv/types.h"
 
-static void _supportSyscallHandler();
+static void _supportSyscallHandler(support_t* sup);
 void programTrapHandler();
-static void _terminate();
-static void _writeTerminal();
-static void _readTerminal();
-static void _execute();
+static void _terminate(support_t* sup);
+static void _writeTerminal(support_t* sup);
+static void _readTerminal(support_t* sup);
+static void _execute(support_t* sup);
 
 void supportExceptionHandler() {
     support_t* support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
@@ -30,7 +30,7 @@ void supportExceptionHandler() {
     // processed by the support level exception handler
     case EXC_ECU:
     case EXC_ECM:
-        _supportSyscallHandler();
+        _supportSyscallHandler(support);
         break;
 
     // Spec 4.2: "[...] TLB-modification exceptions should not occur.
@@ -41,8 +41,7 @@ void supportExceptionHandler() {
     }
 }
 
-static void _supportSyscallHandler() {
-    support_t* process_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
+static void _supportSyscallHandler(support_t* process_support) {
 
     // Store the Machine Previous Privilege mode
     /* int mode = process_support->sup_exceptState[GENERALEXCEPT].status; */
@@ -56,16 +55,16 @@ static void _supportSyscallHandler() {
     if (syscall_code > 0) {
         switch (syscall_code) {
         case (TERMINATE):
-            _terminate();
+            _terminate(process_support);
             break;
         case (WRITETERMINAL):
-            _writeTerminal();
+            _writeTerminal(process_support);
             break;
         case (READTERMINAL):
-            _readTerminal();
+            _readTerminal(process_support);
             break;
         case (EXECUTE):
-            _execute();
+            _execute(process_support);
             break;
         default:
             programTrapHandler();
@@ -76,8 +75,7 @@ static void _supportSyscallHandler() {
     programTrapHandler();
 }
 
-static void _terminate() {
-    support_t* current_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
+static void _terminate(support_t* current_support) {
 
     extern unsigned int master_semaphore;
     // The process should always have a support structure
@@ -95,12 +93,11 @@ static void _terminate() {
     SYSCALL(TERMPROCESS, 0, 0, 0);
 }
 
-static void _writeTerminal() {
+static void _writeTerminal(support_t* support_structure) {
     termreg_t* terminal = (termreg_t*)(TERM0ADDR);
     memaddr* command = (memaddr*)terminal + 3;
     memaddr status;
 
-    support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
     state_t* exc_state = &support_structure->sup_exceptState[GENERALEXCEPT];
     char* msg = (char*)exc_state->reg_a1;
 
@@ -135,12 +132,11 @@ static void _writeTerminal() {
     SYSCALL(VERHOGEN, (int)&support_mutex[9], 0, 0);
 }
 
-static void _readTerminal() {
+static void _readTerminal(support_t* support_structure) {
     termreg_t* terminal = (termreg_t*)(TERM0ADDR);
     memaddr* command = (memaddr*)terminal + 1;
     unsigned int status;
 
-    support_t* support_structure = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
     state_t* exc_state = &support_structure->sup_exceptState[GENERALEXCEPT];
     char* buffer = (char*)exc_state->reg_a1;
 
@@ -201,8 +197,7 @@ void initializeSupport(support_t* support, unsigned int asid) {
     }
 }
 
-static void _execute() {
-    support_t* current_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
+static void _execute(support_t* current_support) {
     unsigned int asid = current_support->sup_exceptState[GENERALEXCEPT].reg_a1;
     state_t new_state;
     support_t* new_support = allocSupportStruct();
