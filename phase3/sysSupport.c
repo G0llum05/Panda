@@ -82,13 +82,15 @@ static void _terminate() {
     extern unsigned int master_semaphore;
     // The process should always have a support structure
     if (current_support != NULL) {
+        int asid = current_support->sup_asid;
         invalidateSwapPoolByASID(current_support->sup_asid);
-        if (current_support->sup_asid == SHELLASID) {
+        flushTLBBySupport(current_support);
+        freeSupportStruct(current_support);
+        if (asid == SHELLASID) {
             SYSCALL(VERHOGEN, (memaddr)&master_semaphore, 0, 0);
         } else {
             SYSCALL(VERHOGEN, (memaddr)&shell_mutex, 0, 0);
         }
-        freeSupportStruct(current_support);
     }
     SYSCALL(TERMPROCESS, 0, 0, 0);
 }
@@ -177,10 +179,10 @@ void initializeSupport(support_t* support, unsigned int asid) {
     // Initialize shell support struct
     context_t* context = support->sup_exceptContext;
     context[GENERALEXCEPT].stackPtr = (memaddr)&support->sup_stackGen[499];
-    context[GENERALEXCEPT].status |= MSTATUS_MPP_M;
+    context[GENERALEXCEPT].status = MSTATUS_MPP_M;
     context[GENERALEXCEPT].pc = (memaddr)supportExceptionHandler;
     context[PGFAULTEXCEPT].stackPtr = (memaddr)&support->sup_stackTLB[499];
-    context[PGFAULTEXCEPT].status |= MSTATUS_MPP_M;
+    context[PGFAULTEXCEPT].status = MSTATUS_MPP_M;
     context[PGFAULTEXCEPT].pc = (memaddr)pager;
     support->sup_asid = asid;
 
@@ -203,6 +205,10 @@ static void _execute() {
     unsigned int asid = current_support->sup_exceptState[GENERALEXCEPT].reg_a1;
     state_t new_state;
     support_t* new_support = allocSupportStruct();
+    if (!new_support) {
+        SYSCALL(TERMPROCESS, 0, 0, 0);
+        return;
+    }
 
     setState(&new_state, asid);
     initializeSupport(new_support, asid);
@@ -217,8 +223,9 @@ void programTrapHandler() {
     support_t* current_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
     unsigned int asid = current_support->sup_asid;
     invalidateSwapPoolByASID(asid);
+    flushTLBBySupport(current_support);
     freeSupportStruct(current_support);
-    if (asid == 1) {
+    if (asid == SHELLASID) {
         SYSCALL(VERHOGEN, (int)&master_semaphore, 0, 0);
     } else {
         SYSCALL(VERHOGEN, (int)&shell_mutex, 0, 0);

@@ -1,7 +1,6 @@
 #include "headers/vmSupport.h"
 #include "../headers/const.h"
 #include "../headers/types.h"
-#include "../phase2/headers/klog.h"
 #include "headers/initProc.h"
 #include "headers/sysSupport.h"
 #include "uriscv/arch.h"
@@ -42,7 +41,7 @@ void setState(state_t* state, unsigned int asid) {
     state->reg_sp = USERSTACKTOP;
     state->mie = MIE_ALL;
     state->pc_epc = (memaddr)UPROCSTARTADDR;
-    state->status |= MSTATUS_MPIE_MASK;
+    state->status = MSTATUS_MPIE_MASK;
     state->entry_hi = asid << ENTRYHI_ASID_BIT;
 }
 
@@ -80,6 +79,21 @@ void invalidateSwapPoolByASID(unsigned int asid) {
             swap_pool_table[i].sw_pte = NULL;
         }
     }
+}
+
+void flushTLBBySupport(support_t* sup) {
+    setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
+    for (int i = 0; i < USERPGTBLSIZE; i++) {
+        pteEntry_t* entry = &sup->sup_privatePgTbl[i];
+        setENTRYHI(entry->pte_entryHI);
+        TLBP();
+        if ((getINDEX() & PROBEBIT) == 0) { // entry trovata in TLB
+            setENTRYHI(0xFFFFF000);
+            setENTRYLO(0); // VALID=0
+            TLBWI();
+        }
+    }
+    setSTATUS(getSTATUS() | MSTATUS_MIE_MASK);
 }
 
 // Is the pool empty?
@@ -146,7 +160,10 @@ void pager() {
     pteEntry_t* process_pte = swap_pte->sw_pte;
     int flash_idx = support_structure->sup_asid - 1; // NOTE: flashNo + 1 = ASID
     dtpreg_t* dev_addr = (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, flash_idx);
-    memaddr commandp = (memaddr)&dev_addr->command;
+    int old_page_flash_idx = process_asid - 1;
+    dtpreg_t* old_dev_addr =
+        (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, old_page_flash_idx);
+    memaddr old_commandp = (memaddr)&old_dev_addr->command;
     unsigned int status_code;
     memaddr swap_frame_addr = FLASHPOOLSTART + frame_to_pick * PAGESIZE;
     unsigned int block_idx = swap_pte->sw_pageNo;
@@ -165,16 +182,16 @@ void pager() {
         setSTATUS(getSTATUS() | MSTATUS_MIE_MASK);
 
         // Save old frame
-        dev_addr->data0 = swap_frame_addr;
+        old_dev_addr->data0 = swap_frame_addr;
 
-        SYSCALL(PASSEREN, (int)&support_mutex[flash_idx], 0, 0);
+        SYSCALL(PASSEREN, (int)&support_mutex[old_page_flash_idx], 0, 0);
 
         // REVIEW: is page-block mapping 1-1?
         // Block could be 1024, page is 4096
         status_code =
-            SYSCALL(DOIO, (int)commandp, (block_idx << 8) | FLASHWRITE, 0);
+            SYSCALL(DOIO, (int)old_commandp, (block_idx << 8) | FLASHWRITE, 0);
 
-        SYSCALL(VERHOGEN, (int)&support_mutex[flash_idx], 0, 0);
+        SYSCALL(VERHOGEN, (int)&support_mutex[old_page_flash_idx], 0, 0);
 
         _handleStatus(status_code);
     }
@@ -182,11 +199,9 @@ void pager() {
     // Step 9
     // Load missing page into memory
     dev_addr->data0 = swap_frame_addr;
-
     SYSCALL(PASSEREN, (int)&support_mutex[flash_idx], 0, 0);
-
-    status_code = SYSCALL(DOIO, (int)commandp, (block_idx << 8) | FLASHREAD, 0);
-
+    status_code =
+        SYSCALL(DOIO, (memaddr)&dev_addr->command, (vpi << 8) | FLASHREAD, 0);
     SYSCALL(VERHOGEN, (int)&support_mutex[flash_idx], 0, 0);
 
     _handleStatus(status_code);
