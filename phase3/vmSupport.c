@@ -29,9 +29,6 @@
 static support_t supports[UPROCMAX];
 static struct list_head supportsFree;
 
-// Spec 5.4
-static unsigned int frame_to_pick = 0;
-
 // Spec 12.2: "[...] the Swap Pool table is local to this module."
 static swap_t swap_pool_table[SWAPPOOLSIZE];
 static unsigned int swap_pool_mutex = 1;
@@ -162,6 +159,13 @@ void pager() {
     // policy. It uses a static variable modulo the size of
     // the swap pool to choose the next frame sequentially.
 
+    unsigned int frame_to_pick = 0;
+    for (; frame_to_pick < SWAPPOOLSIZE; frame_to_pick++) {
+        if (swap_pool_table[frame_to_pick].sw_pte->pte_entryLO &
+            ENTRYLO_VALID_BIT) {
+            break;
+        }
+    }
     swap_t* swap_pte = &swap_pool_table[frame_to_pick];
     int process_asid = swap_pte->sw_asid;
 
