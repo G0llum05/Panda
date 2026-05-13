@@ -29,6 +29,15 @@
 static support_t supports[UPROCMAX];
 static struct list_head supportsFree;
 
+// Spec 5.4
+static unsigned int frame_to_pick = 0;
+
+// Spec 12.2: "[...] the Swap Pool table is local to this module."
+static swap_t swap_pool_table[SWAPPOOLSIZE];
+static unsigned int swap_pool_mutex = 1;
+
+static void _handleStatus(unsigned int);
+
 void setState(state_t* state, unsigned int asid) {
     state->reg_sp = USERSTACKTOP;
     state->mie = MIE_ALL;
@@ -64,17 +73,17 @@ void freeSupportStruct(support_t* sup) {
     list_add_tail(&sup->s_list, &supportsFree);
 }
 
+void invalidateSwapPoolByASID(unsigned int asid) {
+    for (int i = 0; i < SWAPPOOLSIZE; i++) {
+        if (swap_pool_table[i].sw_asid == (int)asid) {
+            swap_pool_table[i].sw_asid = -1;
+            swap_pool_table[i].sw_pte = NULL;
+        }
+    }
+}
+
 // Is the pool empty?
 int isSupportPoolEmpty() { return list_empty(&supportsFree); }
-
-// Spec 5.4
-static unsigned int frame_to_pick = 0;
-
-// Spec 12.2: "[...] the Swap Pool table is local to this module."
-static swap_t swap_pool_table[SWAPPOOLSIZE];
-static unsigned int swap_pool_mutex = 1;
-
-static void _handleStatus(unsigned int);
 
 // Spec 12.2: "The test function will now invoke [...] initSwapStructs
 // which will do the work of initializing the Swap Pool table."
@@ -140,7 +149,7 @@ void pager() {
     memaddr commandp = (memaddr)&dev_addr->command;
     unsigned int status_code;
     memaddr swap_frame_addr = FLASHPOOLSTART + frame_to_pick * PAGESIZE;
-    unsigned int block_idx = vpi;
+    unsigned int block_idx = swap_pte->sw_pageNo;
 
     if (process_asid != -1) { // A user process uses this frame
         setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
@@ -184,9 +193,10 @@ void pager() {
 
     // Step 10
     process_asid = support_structure->sup_asid;
+    swap_pte->sw_asid = process_asid;
     swap_pte->sw_pageNo = vpi;
     process_pte = &support_structure->sup_privatePgTbl[vpi];
-
+    swap_pte->sw_pte = process_pte;
     // Step 11
     setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
 

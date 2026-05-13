@@ -82,6 +82,7 @@ static void _terminate() {
     extern unsigned int master_semaphore;
     // The process should always have a support structure
     if (current_support != NULL) {
+        invalidateSwapPoolByASID(current_support->sup_asid);
         if (current_support->sup_asid == SHELLASID) {
             SYSCALL(VERHOGEN, (memaddr)&master_semaphore, 0, 0);
         } else {
@@ -193,7 +194,7 @@ void initializeSupport(support_t* support, unsigned int asid) {
             entry->pte_entryHI = (USERSTACKTOP - PAGESIZE); // 0xbffff
         }
         entry->pte_entryHI |= shiftedASID;
-        entry->pte_entryLO |= DIRTYON;
+        entry->pte_entryLO = DIRTYON;
     }
 }
 
@@ -214,12 +215,13 @@ static void _execute() {
 
 void programTrapHandler() {
     support_t* current_support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
-    unsigned int asid = current_support->sup_exceptState[GENERALEXCEPT].reg_a1;
+    unsigned int asid = current_support->sup_asid;
+    invalidateSwapPoolByASID(asid);
+    freeSupportStruct(current_support);
     if (asid == 1) {
         SYSCALL(VERHOGEN, (int)&master_semaphore, 0, 0);
     } else {
         SYSCALL(VERHOGEN, (int)&shell_mutex, 0, 0);
     }
-    freeSupportStruct(current_support);
     SYSCALL(TERMPROCESS, 0, 0, 0);
 }

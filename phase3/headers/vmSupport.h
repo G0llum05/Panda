@@ -33,6 +33,7 @@ void pager();
 void initSupportPool();
 support_t* allocSupportStruct();
 void freeSupportStruct(support_t* sup);
+void invalidateSwapPoolByASID(unsigned int asid);
 int isSupportPoolEmpty();
 
 #endif
