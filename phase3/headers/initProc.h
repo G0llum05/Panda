@@ -8,5 +8,6 @@
 extern unsigned int shell_mutex;
 extern unsigned int master_semaphore;
 extern unsigned int support_mutex[FLASHDEVICES + TERMINALDEVICES];
-
+extern unsigned int flashpoolstart;
+#define FLASHPOOLSTART (flashpoolstart)
 #endif
