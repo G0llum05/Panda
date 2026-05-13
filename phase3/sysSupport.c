@@ -87,6 +87,7 @@ static void _terminate() {
         } else {
             SYSCALL(VERHOGEN, (memaddr)&shell_mutex, 0, 0);
         }
+        freeSupportStruct(current_support);
     }
     SYSCALL(TERMPROCESS, 0, 0, 0);
 }
@@ -219,5 +220,6 @@ void programTrapHandler() {
     } else {
         SYSCALL(VERHOGEN, (int)&shell_mutex, 0, 0);
     }
+    freeSupportStruct(current_support);
     SYSCALL(TERMPROCESS, 0, 0, 0);
 }
