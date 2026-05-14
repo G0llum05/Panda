@@ -25,7 +25,7 @@ void supportExceptionHandler() {
         support->sup_exceptState[GENERALEXCEPT].cause & CAUSE_EXCCODE_MASK;
 
     switch (cause) {
-    case EXC_TLBL ... EXC_UTLBS: // never?
+    case EXC_TLBL ... EXC_UTLBS:
         pager();
         break;
 
@@ -45,9 +45,6 @@ void supportExceptionHandler() {
 }
 
 static void _supportSyscallHandler(support_t* process_support) {
-
-    // Store the Machine Previous Privilege mode
-    /* int mode = process_support->sup_exceptState[GENERALEXCEPT].status; */
 
     const int syscall_code =
         process_support->sup_exceptState[GENERALEXCEPT].reg_a0;
@@ -107,7 +104,7 @@ static void _writeTerminal(support_t* support_structure) {
     if ((int)msg < KUSEG) { // NOTE: string-literal (offset)
         memaddr nearest_page = exc_state->pc_epc & 0xFFFFF000;
         msg = (char*)msg - KERNELSTACK + nearest_page;
-    } // else in STACK
+    } // else in stack
     int char_number = (int)exc_state->reg_a2;
     int char_transmitted = 0;
 
@@ -193,7 +190,7 @@ void initializeSupport(support_t* support, unsigned int asid) {
         if (i != USERPGTBLSIZE - 1) {
             entry->pte_entryHI = KUSEG + (i << ENTRYHI_VPN_BIT);
         } else {
-            entry->pte_entryHI = (USERSTACKTOP - PAGESIZE); // 0xbffff
+            entry->pte_entryHI = (USERSTACKTOP - PAGESIZE);
         }
         entry->pte_entryHI |= shiftedASID;
         entry->pte_entryLO = DIRTYON;

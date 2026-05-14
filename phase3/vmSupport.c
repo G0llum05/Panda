@@ -6,10 +6,9 @@
 #include "headers/sysSupport.h"
 #include "uriscv/arch.h"
 #include "uriscv/const.h"
+#include "uriscv/cpu.h"
+#include "uriscv/liburiscv.h"
 #include "uriscv/types.h"
-#include <uriscv/cpu.h>
-#include <uriscv/liburiscv.h>
-#include <uriscv/types.h>
 
 // Spec 10: create allocate, deallocate methods to manipulate
 // static structures.
@@ -115,13 +114,14 @@ void uTLB_RefillHandler() {
     extern pcb_t* running_pcb;
     support_t* support_structure = running_pcb->p_supportStruct;
     pteEntry_t* page_table_entry =
-        &support_structure->sup_privatePgTbl[vpn > 30 ? 31 : vpn];
+        &support_structure
+             ->sup_privatePgTbl[vpn > LASTPAGEINDEX ? STACKINDEX : vpn];
     setENTRYHI(page_table_entry->pte_entryHI);
     setENTRYLO(page_table_entry->pte_entryLO);
     TLBP();
     if ((getINDEX() & PROBEBIT) != 0) {
-        // entry not found, round robinize
-        setINDEX(next_tlbi << 8);
+        // Entry not found, choose a new entry (round robin policy)
+        setINDEX(next_tlbi << TLBINDEXBIT);
         next_tlbi = (next_tlbi + 1) % POOLSIZE;
     }
     TLBWI();
@@ -148,13 +148,13 @@ void pager() {
     // Step 5 - Missing page to load
     unsigned int vpn = ENTRYHI_GET_VPN(
         support_structure->sup_exceptState[PGFAULTEXCEPT].entry_hi);
-    unsigned int pageNo = vpn > 30 ? 31 : vpn;
+    unsigned int pageNo = vpn > LASTPAGEINDEX ? STACKINDEX : vpn;
 
     // Step 6-7-8
     // Spec 5.3: to achieve atomic operations we disable and
     // enable interrupts.
 
-    // Finds first free swap page. O(n)
+    // Finds first free swap page in O(n)
     unsigned int frame_to_pick = 0;
     for (; frame_to_pick < SWAPPOOLSIZE; frame_to_pick++) {
         if (swap_pool_table[frame_to_pick].sw_pte->pte_entryLO &
@@ -191,8 +191,6 @@ void pager() {
 
         SYSCALL(PASSEREN, (int)&support_mutex[flash], 0, 0);
 
-        // REVIEW: is page-block mapping 1-1? (apparently yes)
-        // Block could be 1024, page is 4096
         int status_code =
             SYSCALL(DOIO, (int)commandp, (pageNo << 8) | FLASHWRITE, 0);
 
@@ -218,15 +216,17 @@ void pager() {
 
     _handleStatus(status_code);
 
-    // Creative Step: If header set dirtyness
+    // Creative Step: If page contains header, set text to read-only
     if (pageNo == 0 && !initializedDirtyness[asid - 1]) {
         initializedDirtyness[asid - 1] = 1;
         typedef unsigned int uint;
-        uint text_start_block = (*(uint*)(swap_frame_addr + 0x0010)) / PAGESIZE;
-        uint text_of = (*(uint*)(swap_frame_addr + 0x0014)) / PAGESIZE;
-        for (int i = 0; i < 31; i++) {
+        uint text_start_block =
+            (*(uint*)(swap_frame_addr + TEXT_START_POINTER_OFFSET)) / PAGESIZE;
+        uint text_of = (*(uint*)(swap_frame_addr + TEXT_FILE_SIZE)) / PAGESIZE;
+        for (int i = 0; i < STACKINDEX; i++) {
+
             if (text_start_block <= i && i < text_start_block + text_of) {
-                // set not dirty
+                // Set read-only
                 pteEntry_t* pte = &support_structure->sup_privatePgTbl[i];
                 SETBITOFF(pte->pte_entryLO, ENTRYLO_DIRTY_BIT);
             } else {

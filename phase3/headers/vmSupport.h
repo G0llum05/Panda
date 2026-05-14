@@ -21,6 +21,16 @@
 #define SLASID 7
 #define CALCASID 8
 
+#define LASTPAGEINDEX 30
+#define STACKINDEX 31
+
+// TLB index starting bit in the index register
+#define TLBINDEXBIT 8
+
+// Principles of Operation chapter 10.3
+#define TEXT_START_POINTER_OFFSET 0x0010
+#define TEXT_FILE_SIZE 0x0014
+
 // Small snippet of reusable state assignment logic
 void setState(state_t* state, unsigned int asid);
 

@@ -6,18 +6,19 @@
 
 unsigned int shell_mutex = 0;
 unsigned int master_semaphore = 0;
-unsigned int support_mutex[FLASHDEVICES + TERMINALDEVICES];
-extern unsigned int end; // Linker defined variable.
 unsigned int flashpoolstart;
+// Linker defined variable to mark the end of the OS
+extern unsigned int end;
 
 // Device mutex
 // Flash devices index 0-7
 // Terminal output device index 8
 // Terminal input device index 9
+unsigned int support_mutex[FLASHDEVICES + TERMINALDEVICES];
 
 // Instatiator process
 void test() {
-    // Align flashpoolstart to nearest page. (Padding)
+    // Align flashpoolstart to nearest page (padding)
     flashpoolstart = (((unsigned int)&end + 0xFFF) & ~0xFFF);
 
     // Initialize Swap Pool Table
@@ -26,7 +27,7 @@ void test() {
     // Initiliaze allocated supports list
     initSupportPool();
 
-    // init mutex
+    // Init mutex
     for (int i = 0; i < FLASHDEVICES + TERMINALDEVICES; i++) {
         support_mutex[i] = 1;
     }
