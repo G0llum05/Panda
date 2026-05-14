@@ -95,7 +95,6 @@ void invalidateTLBBySupport(support_t* sup) {
     setSTATUS(getSTATUS() | MSTATUS_MIE_MASK);
 }
 
-// Is the pool empty?
 int isSupportPoolEmpty() { return list_empty(&supportsFree); }
 
 // Spec 12.2: "The test function will now invoke [...] initSwapStructs
@@ -147,19 +146,15 @@ void pager() {
     SYSCALL(PASSEREN, (unsigned int)&swap_pool_mutex, 0, 0);
 
     // Step 5 - Missing page to load
-
     unsigned int vpn = ENTRYHI_GET_VPN(
         support_structure->sup_exceptState[PGFAULTEXCEPT].entry_hi);
-    unsigned int vpi = vpn > 30 ? 31 : vpn;
+    unsigned int pageNo = vpn > 30 ? 31 : vpn;
 
     // Step 6-7-8
-
     // Spec 5.3: to achieve atomic operations we disable and
     // enable interrupts.
-    // Spec 5.4: the pager algorithm is round robin, FIFO
-    // policy. It uses a static variable modulo the size of
-    // the swap pool to choose the next frame sequentially.
 
+    // Finds first free swap page. O(n)
     unsigned int frame_to_pick = 0;
     for (; frame_to_pick < SWAPPOOLSIZE; frame_to_pick++) {
         if (swap_pool_table[frame_to_pick].sw_pte->pte_entryLO &
@@ -167,62 +162,65 @@ void pager() {
             break;
         }
     }
-    swap_t* swap_pte = &swap_pool_table[frame_to_pick];
-    int process_asid = swap_pte->sw_asid;
 
-    // TODO: re-rename variables
-    pteEntry_t* process_pte = swap_pte->sw_pte;
-    int flash_idx = support_structure->sup_asid - 1; // NOTE: flashNo + 1 = ASID
-    dtpreg_t* dev_addr = (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, flash_idx);
-    int old_page_flash_idx = process_asid - 1;
-    dtpreg_t* old_dev_addr =
-        (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, old_page_flash_idx);
-    memaddr old_commandp = (memaddr)&old_dev_addr->command;
-    unsigned int status_code;
     memaddr swap_frame_addr = FLASHPOOLSTART + frame_to_pick * PAGESIZE;
-    unsigned int block_idx = swap_pte->sw_pageNo;
+    swap_t* swap_pte = &swap_pool_table[frame_to_pick];
 
-    if (process_asid != -1) { // A user process uses this frame
+    int old_process_asid = swap_pte->sw_asid; // Occupying process asid
+    if (old_process_asid != -1) {             // A user process uses this frame
+        int flash = old_process_asid - 1;
+        pteEntry_t* pte = swap_pte->sw_pte;
+        unsigned int pageNo = swap_pte->sw_pageNo;
+        dtpreg_t* dev_addr = (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, flash);
+        memaddr commandp = (memaddr)&dev_addr->command;
+
         setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
-        SETBITOFF(process_pte->pte_entryLO, ENTRYLO_VALID_BIT);
+        SETBITOFF(pte->pte_entryLO, ENTRYLO_VALID_BIT);
         // NOTE: TLBP() uses entryHi to match the entry in TLB
-        setENTRYHI(process_pte->pte_entryHI);
+        setENTRYHI(pte->pte_entryHI);
         TLBP();
         // Is the frame cached in the TLB?
         if ((getINDEX() & PROBEBIT) == 0) { // If 0, frame found
-            setENTRYLO(process_pte->pte_entryLO);
+            setENTRYLO(pte->pte_entryLO);
             TLBWI();
         }
         setSTATUS(getSTATUS() | MSTATUS_MIE_MASK);
 
         // Save old frame
-        old_dev_addr->data0 = swap_frame_addr;
+        dev_addr->data0 = swap_frame_addr;
 
-        SYSCALL(PASSEREN, (int)&support_mutex[old_page_flash_idx], 0, 0);
+        SYSCALL(PASSEREN, (int)&support_mutex[flash], 0, 0);
 
         // REVIEW: is page-block mapping 1-1? (apparently yes)
         // Block could be 1024, page is 4096
-        status_code =
-            SYSCALL(DOIO, (int)old_commandp, (block_idx << 8) | FLASHWRITE, 0);
+        int status_code =
+            SYSCALL(DOIO, (int)commandp, (pageNo << 8) | FLASHWRITE, 0);
 
-        SYSCALL(VERHOGEN, (int)&support_mutex[old_page_flash_idx], 0, 0);
+        SYSCALL(VERHOGEN, (int)&support_mutex[flash], 0, 0);
 
         _handleStatus(status_code);
     }
 
+    unsigned int status_code;
+    unsigned int asid = support_structure->sup_asid;
+    pteEntry_t* pte = &support_structure->sup_privatePgTbl[pageNo];
+
     // Step 9
     // Load missing page into memory
+    int flash = asid - 1; // NOTE: flashNo + 1 = ASID
+    dtpreg_t* dev_addr = (dtpreg_t*)DEV_REG_ADDR(IL_FLASH, flash);
+
     dev_addr->data0 = swap_frame_addr;
-    SYSCALL(PASSEREN, (int)&support_mutex[flash_idx], 0, 0);
-    status_code =
-        SYSCALL(DOIO, (memaddr)&dev_addr->command, (vpi << 8) | FLASHREAD, 0);
-    SYSCALL(VERHOGEN, (int)&support_mutex[flash_idx], 0, 0);
+    SYSCALL(PASSEREN, (int)&support_mutex[flash], 0, 0);
+    status_code = SYSCALL(DOIO, (memaddr)&dev_addr->command,
+                          (pageNo << 8) | FLASHREAD, 0);
+    SYSCALL(VERHOGEN, (int)&support_mutex[flash], 0, 0);
 
     _handleStatus(status_code);
 
     // Creative Step: If header set dirtyness
-    if (vpi == 0 && !initializedDirtyness[process_asid]) { // or 1?
-        initializedDirtyness[process_asid] = 1;
+    if (pageNo == 0 && !initializedDirtyness[asid]) {
+        initializedDirtyness[asid] = 1;
         typedef unsigned int uint;
         uint text_start_block = (*(uint*)(swap_frame_addr + 0x0010)) / PAGESIZE;
         uint text_of = (*(uint*)(swap_frame_addr + 0x0014)) / PAGESIZE;
@@ -239,41 +237,37 @@ void pager() {
     }
 
     // Step 10
-    process_asid = support_structure->sup_asid;
-    swap_pte->sw_asid = process_asid;
-    swap_pte->sw_pageNo = vpi;
-    process_pte = &support_structure->sup_privatePgTbl[vpi];
-    swap_pte->sw_pte = process_pte;
+    // Initialize swap_pte
+    swap_pte->sw_asid = asid;
+    swap_pte->sw_pageNo = pageNo;
+    swap_pte->sw_pte = pte;
+
     // Step 11
     setSTATUS(getSTATUS() & ~MSTATUS_MIE_MASK);
 
-    process_pte->pte_entryLO &= ~ENTRYLO_PFN_MASK;
-    SETBITON(process_pte->pte_entryLO, ENTRYLO_VALID_BIT);
-    process_pte->pte_entryLO |= (swap_frame_addr & ENTRYLO_PFN_MASK);
+    pte->pte_entryLO &= ~ENTRYLO_PFN_MASK;
+    SETBITON(pte->pte_entryLO, ENTRYLO_VALID_BIT);
+    pte->pte_entryLO |= (swap_frame_addr & ENTRYLO_PFN_MASK);
 
     // Step 12
-
-    setENTRYHI(process_pte->pte_entryHI);
+    setENTRYHI(pte->pte_entryHI);
     TLBP();
     // Is the frame cached in the TLB?
     if ((getINDEX() & PROBEBIT) == 0) { // If 0, frame found
-        setENTRYLO(process_pte->pte_entryLO);
+        setENTRYLO(pte->pte_entryLO);
         TLBWI();
     }
 
     setSTATUS(getSTATUS() | MSTATUS_MIE_MASK);
 
-    frame_to_pick = (frame_to_pick + 1) % SWAPPOOLSIZE;
-
     // Step 13
-
     SYSCALL(VERHOGEN, (unsigned int)&swap_pool_mutex, 0, 0);
 
     // Step 14
     LDST(&support_structure->sup_exceptState[PGFAULTEXCEPT]);
 }
 
-static void _handleStatus(unsigned int status_code) {
+static inline void _handleStatus(unsigned int status_code) {
     if (status_code != READY) {
         SYSCALL(VERHOGEN, (unsigned int)&swap_pool_mutex, 0, 0);
         programTrapHandler();

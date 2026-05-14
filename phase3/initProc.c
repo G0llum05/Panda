@@ -1,15 +1,13 @@
 #include "headers/initProc.h"
 #include "../headers/const.h"
-#include "../phase2/headers/klog.h"
 #include "headers/sysSupport.h"
 #include "headers/vmSupport.h"
 #include "uriscv/liburiscv.h"
 
-/* void* swap_pool = (void*)FLASHPOOLSTART; */
 unsigned int shell_mutex = 0;
 unsigned int master_semaphore = 0;
 unsigned int support_mutex[FLASHDEVICES + TERMINALDEVICES];
-extern unsigned int end;
+extern unsigned int end; // Linker defined variable.
 unsigned int flashpoolstart;
 
 // Device mutex
@@ -21,6 +19,7 @@ unsigned int flashpoolstart;
 void test() {
     // Align flashpoolstart to nearest page. (Padding)
     flashpoolstart = (((unsigned int)&end + 0xFFF) & ~0xFFF);
+
     // Initialize Swap Pool Table
     initSwapStructs();
 
@@ -44,7 +43,7 @@ void test() {
     // Initialize shell state struct
     support_t* shell_support = allocSupportStruct();
     if (!shell_support)
-        PANIC();
+        SYSCALL(TERMPROCESS, 0, 0, 0);
 
     initializeSupport(shell_support, SHELLASID);
 
