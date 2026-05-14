@@ -106,7 +106,7 @@ void initSwapStructs() {
 }
 
 // Spec 3
-unsigned int next_tlbi = 0;
+static unsigned int next_tlbi = 0;
 void uTLB_RefillHandler() {
     state_t* cpu_state = GET_EXCEPTION_STATE_PTR(0);
     unsigned int vpn = ENTRYHI_GET_VPN(cpu_state->entry_hi);
@@ -219,13 +219,13 @@ void pager() {
     _handleStatus(status_code);
 
     // Creative Step: If header set dirtyness
-    if (pageNo == 0 && !initializedDirtyness[asid]) {
-        initializedDirtyness[asid] = 1;
+    if (pageNo == 0 && !initializedDirtyness[asid - 1]) {
+        initializedDirtyness[asid - 1] = 1;
         typedef unsigned int uint;
         uint text_start_block = (*(uint*)(swap_frame_addr + 0x0010)) / PAGESIZE;
         uint text_of = (*(uint*)(swap_frame_addr + 0x0014)) / PAGESIZE;
         for (int i = 0; i < 31; i++) {
-            if (text_start_block <= i && i <= text_start_block + text_of) {
+            if (text_start_block <= i && i < text_start_block + text_of) {
                 // set not dirty
                 pteEntry_t* pte = &support_structure->sup_privatePgTbl[i];
                 SETBITOFF(pte->pte_entryLO, ENTRYLO_DIRTY_BIT);

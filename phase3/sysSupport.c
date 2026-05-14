@@ -16,6 +16,9 @@ static void _writeTerminal(support_t* sup);
 static void _readTerminal(support_t* sup);
 static void _execute(support_t* sup);
 
+#define TERMINALOUTPUT 8
+#define TERMINALINPUT 9
+
 void supportExceptionHandler() {
     support_t* support = (support_t*)SYSCALL(GETSUPPORTPTR, 0, 0, 0);
     unsigned int cause =
@@ -114,7 +117,7 @@ static void _writeTerminal(support_t* support_structure) {
         (char_number < 0 || char_number > 128))
         SYSCALL(TERMPROCESS, 0, 0, 0);
 
-    SYSCALL(PASSEREN, (int)&support_mutex[9], 0, 0);
+    SYSCALL(PASSEREN, (int)&support_mutex[TERMINALINPUT], 0, 0);
 
     for (int i = 0; i < char_number; i++) {
         unsigned int value = PRINTCHR | (((unsigned int)*msg) << 8);
@@ -129,7 +132,7 @@ static void _writeTerminal(support_t* support_structure) {
 
     support_structure->sup_exceptState[GENERALEXCEPT].reg_a0 = char_transmitted;
 
-    SYSCALL(VERHOGEN, (int)&support_mutex[9], 0, 0);
+    SYSCALL(VERHOGEN, (int)&support_mutex[TERMINALINPUT], 0, 0);
 }
 
 static void _readTerminal(support_t* support_structure) {
@@ -147,7 +150,7 @@ static void _readTerminal(support_t* support_structure) {
         SYSCALL(TERMPROCESS, 0, 0, 0);
     }
 
-    SYSCALL(PASSEREN, (int)&support_mutex[8], 0, 0);
+    SYSCALL(PASSEREN, (int)&support_mutex[TERMINALOUTPUT], 0, 0);
 
     char received;
     int char_received = 0;
@@ -157,7 +160,7 @@ static void _readTerminal(support_t* support_structure) {
         if ((status & TERMSTATMASK) != CHARRECV) { // RECV = TRANSM
             terminal->recv_status = ~status;
             exc_state->reg_a0 = ~status;
-            SYSCALL(VERHOGEN, (int)&support_mutex[8], 0, 0);
+            SYSCALL(VERHOGEN, (int)&support_mutex[TERMINALOUTPUT], 0, 0);
             return;
         }
         char_received++;
@@ -166,7 +169,7 @@ static void _readTerminal(support_t* support_structure) {
     } while (received != '\n');
 
     exc_state->reg_a0 = char_received;
-    SYSCALL(VERHOGEN, (int)&support_mutex[8], 0, 0);
+    SYSCALL(VERHOGEN, (int)&support_mutex[TERMINALOUTPUT], 0, 0);
 }
 
 void initializeSupport(support_t* support, unsigned int asid) {
