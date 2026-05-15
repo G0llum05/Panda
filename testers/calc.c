@@ -69,7 +69,12 @@ void main() {
         result = first_number * second_number;
         break;
     case DIV:
-        result = (second_number != 0) ? first_number / second_number : 0;
+        if (second_number != 0) {
+            result = first_number / second_number;
+        } else {
+            print(WRITETERMINAL, "Invalid divisor\n");
+            SYSCALL(TERMINATE, 0, 0, 0);
+        }
         break;
     }
 
