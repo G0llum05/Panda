@@ -1,6 +1,6 @@
 # PandOSsh 2025/2026
 
-Implementation up to phase2 of the PandOSsh project of the Operating Systems course at Bologna University.
+Implementation of the PandOSsh project of the Operating Systems course at Bologna University.
 
 ## How to Build & Run
 
